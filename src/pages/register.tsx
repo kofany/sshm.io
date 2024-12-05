@@ -28,11 +28,25 @@ const RegisterPage = () => {
     }
 
     try {
+      // Najpierw pobieramy token CSRF
+      const tokenResponse = await fetch('/api/v1/csrf-token', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      const tokenData = await tokenResponse.json();
+      if (tokenData.status !== 'success') {
+        throw new Error('Failed to get CSRF token');
+      }
+
+      // Wysyłamy właściwy request rejestracji z tokenem
       const response = await fetch('/api/v1/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRF-Token': tokenData.data.token
         },
+        credentials: 'include',
         body: JSON.stringify({
           email,
           password,
