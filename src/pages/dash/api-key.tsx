@@ -126,7 +126,7 @@ const ApiKeyPage = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">API Key Usage</h2>
           <div className="prose max-w-none">
-            <p>Use this API key to authenticate your requests to the SSHM.io API.</p>
+            <p>Use this API key to authenticate your requests to the sshm.io API.</p>
             <p className="mt-2">Include it in your requests as an HTTP header:</p>
             <pre className="bg-gray-50 rounded p-3 mt-2 text-sm">
               X-Api-Key: {'{your-api-key}'}
