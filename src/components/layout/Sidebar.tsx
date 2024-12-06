@@ -1,3 +1,4 @@
+// src/components/layout/Sidebar.tsx
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -8,11 +9,11 @@ const Sidebar = () => {
   const router = useRouter();
 
   const menuItems = [
-    { icon: FiServer, label: 'Hosts', path: '/dash/hosts' },
-    { icon: FiKey, label: 'Keys', path: '/dash/keys' },
-    { icon: FiLock, label: 'Passwords', path: '/dash/passwords' },
-    { icon: FiCode, label: 'API Key', path: '/dash/api-key' },
-    { icon: FiUser, label: 'Profile', path: '/dash/profile' },
+    { Icon: FiServer, label: 'Hosts', path: '/dash/hosts' },
+    { Icon: FiKey, label: 'Keys', path: '/dash/keys' },
+    { Icon: FiLock, label: 'Passwords', path: '/dash/passwords' },
+    { Icon: FiCode, label: 'API Key', path: '/dash/api-key' },
+    { Icon: FiUser, label: 'Profile', path: '/dash/profile' },
   ];
 
   const handleLogout = async () => {
@@ -24,11 +25,11 @@ const Sidebar = () => {
         },
       });
 
-      // Wyczyść dane sesji
+      // Czyszczenie danych sesji
       localStorage.removeItem('sshm_api_key');
-      CryptoSession.clearEncryptionKey();
+      CryptoSession.clearSession();
       
-      // Przekieruj do strony logowania
+      // Przekierowanie do strony logowania
       router.push('/login');
     } catch (error) {
       console.error('Logout failed:', error);
@@ -46,7 +47,6 @@ const Sidebar = () => {
         {/* Menu */}
         <nav className="flex-1 mt-6">
           {menuItems.map((item) => {
-            const Icon = item.icon;
             const isActive = router.pathname === item.path;
             
             return (
@@ -54,12 +54,12 @@ const Sidebar = () => {
                 key={item.path}
                 href={item.path}
                 className={`flex items-center px-6 py-3 text-sm ${
-                  isActive 
+                  isActive
                     ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' 
                     : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                <Icon className="w-5 h-5 mr-3" />
+                <item.Icon className="w-5 h-5 mr-3" />
                 {item.label}
               </Link>
             );
