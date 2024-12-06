@@ -130,7 +130,6 @@ export class CryptoSession {
      * Helper method to migrate encryption key if needed
      * (e.g., when changing encryption key)
      */
-    
     static async migrateEncryptionKey(oldKey: string, newKey: string, data: any): Promise<any> {
         const oldCipher = new Cipher(oldKey);
         const newCipher = new Cipher(newKey);
