@@ -14,15 +14,15 @@ interface HostsListProps {
 
 const decryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
   try {
-    return {
-      ...host,
-      login: await cipher.decrypt(host.login),
-      ip: await cipher.decrypt(host.ip),
-      port: await cipher.decrypt(host.port)
-    };
+      return {
+          ...host,
+          login: await cipher.decrypt(host.login),
+          ip: await cipher.decrypt(host.ip),
+          port: await cipher.decrypt(host.port)
+      };
   } catch (error) {
-    console.error('Failed to decrypt host:', error);
-    throw new Error('Decryption failed');
+      console.error('Failed to decrypt host:', error);
+      throw new Error('Decryption failed');
   }
 };
 
@@ -46,33 +46,34 @@ const HostsList = ({ onEdit, onDelete, onAdd }: HostsListProps) => {
   const fetchHosts = async () => {
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
-      setShowCryptoPrompt(true);
-      setLoading(false);
-      return;
+        setShowCryptoPrompt(true);
+        setLoading(false);
+        return;
     }
 
     try {
-      const response = await fetch('/api/v1/sync', {
-        headers: auth.getAuthHeaders(),
-      });
+        const response = await fetch('/api/v1/sync', {
+            headers: auth.getAuthHeaders(),
+        });
 
-      const data = await response.json();
-      if (data.status === 'success') {
-        // Deszyfrowanie danych hostów
-        const decryptedHosts = await Promise.all(
-          data.data.hosts.map(async (host: Host) => decryptHost(host, cipher))
-        );
-        setHosts(decryptedHosts);
-      } else {
-        setError(data.message);
-      }
+        const data = await response.json();
+        if (data.status === 'success') {
+            // Deszyfrowanie wszystkich hostów
+            const decryptedHosts = await Promise.all(
+                data.data.hosts.map(async (host: Host) => decryptHost(host, cipher))
+            );
+            setHosts(decryptedHosts);
+        } else {
+            setError(data.message);
+        }
     } catch (err) {
-      console.error('Failed to load hosts:', err);
-      setError('Failed to load hosts');
+        console.error('Failed to load hosts:', err);
+        setError('Failed to load hosts');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
+
   useEffect(() => {
     fetchHosts();
   }, []);
