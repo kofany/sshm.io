@@ -1,7 +1,12 @@
+// src/pages/register.tsx
 import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { auth } from '@/lib/auth';
+import { CryptoSession } from '@/lib/crypto-session';
 
 const RegisterPage = () => {
+  const router = useRouter();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -37,18 +42,11 @@ const RegisterPage = () => {
       const data = await response.json();
 
       if (data.status === 'success') {
-        if (data.data?.confirm_token) {
-          setSuccess(true);
-        } else {
-          setError('Registration failed: No confirmation token received');
-        }
+        setSuccess(true);
       } else {
         setError(data.message || 'Registration failed');
       }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Registration error:', error.message);
-      }
+    } catch (err) {
       setError('Registration failed. Please try again.');
     } finally {
       setLoading(false);

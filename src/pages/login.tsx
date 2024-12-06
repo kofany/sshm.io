@@ -35,12 +35,12 @@ const LoginPage = () => {
 
       if (data.status === 'success') {
         auth.login(data.data.api_key);
-        CryptoSession.clearEncryptionKey();
+        CryptoSession.clearEncryptionKey(); // Upewniamy się, że stary klucz szyfrujący jest wyczyszczony
         router.push('/dash');
       } else {
         setError(data.message || 'Invalid credentials');
       }
-    } catch {
+    } catch (err) {
       setError('Login failed. Please try again.');
     } finally {
       setLoading(false);

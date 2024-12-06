@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { FiUser, FiLock, FiAlertCircle } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiAlertCircle } from 'react-icons/fi';
 import { auth } from '@/lib/auth';
 import { CryptoSession } from '@/lib/crypto-session';
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
@@ -44,7 +44,7 @@ const ProfilePage = () => {
       } else {
         setError(data.message);
       }
-    } catch {
+    } catch (err) {
       setError('Failed to load user data');
     } finally {
       setLoading(false);
@@ -52,42 +52,9 @@ const ProfilePage = () => {
   };
 
   useEffect(() => {
-    const checkAuthAndFetchData = async () => {
-      if (!auth.getApiKey()) {
-        setError('Unauthorized');
-        setLoading(false);
-        return;
-      }
-  
-      const cipher = CryptoSession.getCipher();
-      if (!cipher) {
-        setShowCryptoPrompt(true);
-        setLoading(false);
-        return;
-      }
-  
-      try {
-        const response = await fetch('/api/v1/user/info', {
-          headers: auth.getAuthHeaders(),
-        });
-  
-        const data = await response.json();
-        if (data.status === 'success') {
-          setUserData(data.data);
-          setError('');
-        } else {
-          setError(data.message);
-        }
-      } catch {
-        setError('Failed to load user data');
-      } finally {
-        setLoading(false);
-      }
-    };
-  
-    checkAuthAndFetchData();
+    fetchUserData();
   }, []);
-  
+
   const handleUpdateEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -108,7 +75,7 @@ const ProfilePage = () => {
       } else {
         setError(data.message);
       }
-    } catch {
+    } catch (err) {
       setError('Failed to update email');
     }
   };
@@ -142,7 +109,7 @@ const ProfilePage = () => {
       } else {
         setError(data.message);
       }
-    } catch {
+    } catch (err) {
       setError('Failed to change password');
     }
   };
@@ -164,7 +131,7 @@ const ProfilePage = () => {
       } else {
         setError('Failed to delete account');
       }
-    } catch {
+    } catch (err) {
       setError('Failed to delete account');
     }
   };

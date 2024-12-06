@@ -1,7 +1,7 @@
 // src/pages/dash/keys.tsx
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { FiPlusCircle, FiTrash2, FiCopy } from 'react-icons/fi';
+import { FiPlusCircle, FiTrash2, FiDownload, FiCopy } from 'react-icons/fi';
 import { auth } from '@/lib/auth';
 import { CryptoSession } from '@/lib/crypto-session';
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
@@ -42,6 +42,7 @@ const KeysPage = () => {
 
       const data = await response.json();
       if (data.status === 'success') {
+        // Deszyfrowanie kluczy SSH
         const decryptedKeys = await Promise.all(
           data.data.keys.map(async (key: SSHKey) => ({
             ...key,
@@ -52,7 +53,7 @@ const KeysPage = () => {
       } else {
         setError(data.message);
       }
-    } catch {
+    } catch (err) {
       setError('Failed to load SSH keys');
     } finally {
       setLoading(false);
@@ -72,6 +73,7 @@ const KeysPage = () => {
     }
 
     try {
+      // Szyfrowanie prywatnego klucza
       const encryptedPrivateKey = await cipher.encrypt(newKeyData.private_key);
       
       const newKey = {
@@ -79,6 +81,7 @@ const KeysPage = () => {
         private_key: encryptedPrivateKey
       };
 
+      // Aktualizacja na serwerze
       const response = await fetch('/api/v1/sync', {
         method: 'POST',
         headers: auth.getAuthHeaders(),
@@ -96,7 +99,7 @@ const KeysPage = () => {
       } else {
         setError('Failed to add SSH key');
       }
-    } catch {
+    } catch (err) {
       setError('Failed to add SSH key');
     }
   };
@@ -123,15 +126,15 @@ const KeysPage = () => {
       } else {
         setError('Failed to delete SSH key');
       }
-    } catch {
+    } catch (err) {
       setError('Failed to delete SSH key');
     }
   };
 
-  const handleCopyToClipboard = async (text: string): Promise<void> => {
+  const handleCopyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {
+    } catch (err) {
       setError('Failed to copy to clipboard');
     }
   };

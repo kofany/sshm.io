@@ -1,11 +1,14 @@
+// src/lib/crypto-session.ts
 import { Cipher } from './crypto';
 
 const isBrowser = typeof window !== 'undefined';
 
+interface CryptoSessionEvents {
+  'crypto_session_expired': CustomEvent<void>;
+}
+
 declare global {
-  interface WindowEventMap {
-    'crypto_session_expired': CustomEvent<null>;
-  }
+  interface WindowEventMap extends CryptoSessionEvents {}
 }
 
 export class CryptoSession {

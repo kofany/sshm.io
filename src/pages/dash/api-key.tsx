@@ -1,4 +1,3 @@
-// src/pages/dash/api-key.tsx
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { FiRefreshCw } from 'react-icons/fi';
@@ -8,6 +7,7 @@ import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
 
 const ApiKeyPage = () => {
   const [apiKey, setApiKey] = useState<string>('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -50,17 +50,17 @@ const ApiKeyPage = () => {
       } else {
         setError(data.message);
       }
-    } catch {
+    } catch (err) {
       setError('Failed to generate new API key');
     } finally {
       setRegenerating(false);
     }
   };
 
-  const handleCopyToClipboard = async (text: string): Promise<void> => {
+  const handleCopyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(text);
-    } catch {
+      await navigator.clipboard.writeText(apiKey);
+    } catch (err) {
       setError('Failed to copy to clipboard');
     }
   };
@@ -102,7 +102,7 @@ const ApiKeyPage = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => handleCopyToClipboard(apiKey)}
+                  onClick={handleCopyToClipboard}
                   className="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 >
                   Copy
@@ -129,12 +129,12 @@ const ApiKeyPage = () => {
             <p>Use this API key to authenticate your requests to the sshm.io API.</p>
             <p className="mt-2">Include it in your requests as an HTTP header:</p>
             <pre className="bg-gray-50 rounded p-3 mt-2 text-sm">
-              X-Api-Key: &ldquo;{'{your-api-key}'}&rdquo;
+              X-Api-Key: {'{your-api-key}'}
             </pre>
             <div className="mt-4 p-4 bg-yellow-50 rounded-md">
               <p className="text-sm text-yellow-700">
                 <strong>Note:</strong> Keep your API key secure and never share it with others. 
-                If your key is compromised, use the &ldquo;Generate New Key&rdquo; button to invalidate the old key.
+                If your key is compromised, use the "Generate New Key" button to invalidate the old key.
               </p>
             </div>
           </div>
