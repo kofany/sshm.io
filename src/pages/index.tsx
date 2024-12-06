@@ -1,7 +1,6 @@
 // src/pages/index.tsx
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { FiGithub, FiTerminal, FiLock, FiKey } from 'react-icons/fi';
 
 const IndexPage: React.FC = () => {
@@ -11,13 +10,7 @@ const IndexPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Image
-                src="/logo.svg"
-                alt="sshm.io Logo"
-                width={160}
-                height={40}
-                priority
-              />
+              <span className="text-2xl font-bold text-blue-600">sshm.io</span>
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/login" className="text-gray-600 hover:text-gray-900">
@@ -49,7 +42,7 @@ const IndexPage: React.FC = () => {
             <FiTerminal className="h-8 w-8 text-blue-600" />
             <h3 className="mt-4 text-lg font-medium">Command-line Interface</h3>
             <p className="mt-2 text-gray-600">
-              Termius-like terminal UI tool for efficient SSH management
+              Termius-like terminal UI for efficient SSH management
             </p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">

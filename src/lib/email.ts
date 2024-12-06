@@ -39,11 +39,11 @@ export const sendRegistrationEmail = async (email: string, token: string): Promi
   
   return sendEmail({
     to: email,
-    subject: 'Welcome to sshm.io - Confirm Your Email',
+    subject: 'Welcome to SSHM.io - Confirm Your Email',
     html: `
       <html>
         <body>
-          <h1>Welcome to sshm.io!</h1>
+          <h1>Welcome to SSHM.io!</h1>
           <p>Thank you for registering. Please confirm your email address to get started.</p>
           <p>
             <a href="${confirmUrl}" 
@@ -54,7 +54,7 @@ export const sendRegistrationEmail = async (email: string, token: string): Promi
           <p>If you didn't create this account, you can safely ignore this email.</p>
           <hr>
           <p style="color: #666; font-size: 0.9em;">
-            sshm.io - Secure SSH Management
+            SSHM.io - Secure SSH Management
           </p>
         </body>
       </html>
