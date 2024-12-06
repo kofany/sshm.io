@@ -1,19 +1,11 @@
 import { Cipher } from './crypto';
+
 const isBrowser = typeof window !== 'undefined';
 
-// Definiujemy typ dla danych zdarzenia
-interface CryptoSessionEventDetail {
-  timestamp: number;
-  reason?: string;
-}
-
-// Definiujemy interfejs dla zdarzeń
-interface CryptoSessionEvents {
-  'crypto_session_expired': CustomEvent<CryptoSessionEventDetail>;
-}
-
 declare global {
-  interface WindowEventMap extends CryptoSessionEvents {}
+  interface WindowEventMap {
+    'crypto_session_expired': CustomEvent<null>;
+  }
 }
 
 export class CryptoSession {
@@ -76,14 +68,7 @@ export class CryptoSession {
   private static dispatchSessionExpired(): void {
     if (!isBrowser) return;
     
-    const event = new CustomEvent('crypto_session_expired', {
-      detail: {
-        timestamp: Date.now(),
-        reason: 'Session timeout'
-      }
-    });
-    
-    window.dispatchEvent(event);
+    window.dispatchEvent(new CustomEvent('crypto_session_expired'));
   }
 
   static checkSessionTimeout(): boolean {
