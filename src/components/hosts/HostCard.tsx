@@ -3,6 +3,7 @@ import { FiCopy, FiEye, FiEyeOff } from 'react-icons/fi';
 import { Host, Password } from '@/types/host';
 import { CryptoSession } from '@/lib/crypto-session';
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
+import { Cipher } from '@/lib/crypto'; // Dodaj ten import
 
 interface HostCardProps {
   host: Host;
@@ -26,6 +27,20 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
   const [decryptedHost, setDecryptedHost] = useState<DecryptedHost | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const decryptHost = async (cipher: Cipher) => {
+    try {
+      return {
+        ...host,
+        login: await cipher.decrypt(host.login),
+        ip: await cipher.decrypt(host.ip),
+        port: await cipher.decrypt(host.port)
+      };
+    } catch (err) {
+      console.error('Decryption error:', err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     const decryptHostData = async () => {
       const cipher = CryptoSession.getCipher();
@@ -35,16 +50,14 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
       }
 
       try {
-        const decrypted = {
-          ...host,
-          login: await cipher.decrypt(host.login),
-          ip: await cipher.decrypt(host.ip),
-          port: await cipher.decrypt(host.port)
-        };
+        console.log('Decrypting host data for:', host.name);
+        const decrypted = await decryptHost(cipher);
+        console.log('Decrypted host data:', decrypted);
         setDecryptedHost(decrypted);
+        setError(null);
       } catch (err) {
-        setError('Failed to decrypt host data');
         console.error('Host decryption error:', err);
+        setError('Failed to decrypt host data');
       }
     };
 
@@ -57,58 +70,52 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
       setDecryptedPassword(null);
       return;
     }
-
+  
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
       setShowCryptoPrompt(true);
       return;
     }
-
+  
     try {
       if (password?.password) {
+        console.log('Decrypting password');
         const decrypted = await cipher.decrypt(password.password);
+        console.log('Password decrypted successfully');
         setDecryptedPassword(decrypted);
         setShowPassword(true);
         setError(null);
       }
     } catch (err) {
-      setError('Failed to decrypt password');
       console.error('Password decryption error:', err);
+      setError('Failed to decrypt password');
     }
   };
 
-  const handleCopyToClipboard = async (text: string): Promise<void> => {
+  const handleCopyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Failed to copy to clipboard:', error.message);
-      }
+      console.log('Copied to clipboard successfully');
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
     }
   };
 
-  const handleCryptoKeyProvided = () => {
+  const handleCryptoKeyProvided = async () => {
     setShowCryptoPrompt(false);
-    setError(null);
-    // Ponowne próby deszyfracji po podaniu klucza
-    const decryptHostData = async () => {
-      const cipher = CryptoSession.getCipher();
-      if (!cipher) return;
+    const cipher = CryptoSession.getCipher();
+    if (!cipher) return;
 
-      try {
-        const decrypted = {
-          ...host,
-          login: await cipher.decrypt(host.login),
-          ip: await cipher.decrypt(host.ip),
-          port: await cipher.decrypt(host.port)
-        };
-        setDecryptedHost(decrypted);
-      } catch (err) {
-        setError('Failed to decrypt host data');
-        console.error('Host decryption error:', err);
-      }
-    };
-    decryptHostData();
+    try {
+      console.log('Attempting to decrypt host data after key provided');
+      const decrypted = await decryptHost(cipher);
+      console.log('Successfully decrypted host data');
+      setDecryptedHost(decrypted);
+      setError(null);
+    } catch (err) {
+      console.error('Decryption error after key provided:', err);
+      setError('Failed to decrypt host data');
+    }
   };
 
   if (showCryptoPrompt) {

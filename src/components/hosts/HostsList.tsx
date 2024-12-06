@@ -14,58 +14,26 @@ interface HostsListProps {
 
 const decryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
   try {
-      console.log('Decrypting host with data:', {
-          id: host.id,
-          encrypted_login: host.login,
-          encrypted_ip: host.ip,
-          encrypted_port: host.port
+      // Teraz używamy hex encoding zamiast base64
+      const decryptedLogin = await cipher.decrypt(host.login);
+      const decryptedIP = await cipher.decrypt(host.ip);
+      const decryptedPort = await cipher.decrypt(host.port);
+
+      console.log('Decrypted values:', {
+          login: decryptedLogin,
+          ip: decryptedIP,
+          port: decryptedPort
       });
 
-      // Próbujemy deszyfrować każde pole osobno z obsługą błędów
-      let decryptedLogin, decryptedIp, decryptedPort;
-
-      try {
-          decryptedLogin = await cipher.decrypt(host.login);
-          console.log('Login decrypted successfully');
-      } catch (err: any) {
-          console.error('Failed to decrypt login:', err);
-          throw err;
-      }
-
-      try {
-          decryptedIp = await cipher.decrypt(host.ip);
-          console.log('IP decrypted successfully');
-      } catch (err: any) {
-          console.error('Failed to decrypt IP:', err);
-          throw err;
-      }
-
-      try {
-          decryptedPort = await cipher.decrypt(host.port);
-          console.log('Port decrypted successfully');
-      } catch (err: any) {
-          console.error('Failed to decrypt port:', err);
-          throw err;
-      }
-
-      // Jeśli wszystko się udało, zwracamy odszyfrowanego hosta
       return {
           ...host,
           login: decryptedLogin,
-          ip: decryptedIp,
+          ip: decryptedIP,
           port: decryptedPort
       };
-  } catch (error: unknown) {
-      if (error instanceof Error) {
-          console.error('Decryption error details:', {
-              error: error.name,
-              errorMessage: error.message,
-              errorStack: error.stack
-          });
-      } else {
-          console.error('Unknown decryption error:', error);
-      }
-      throw error;
+  } catch (err) {
+      console.error('Decryption error:', err);
+      throw err;
   }
 };
 

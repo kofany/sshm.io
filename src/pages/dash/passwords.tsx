@@ -29,32 +29,34 @@ const PasswordsPage = () => {
   const fetchPasswords = async () => {
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
-      setShowCryptoPrompt(true);
-      setLoading(false);
-      return;
+        setShowCryptoPrompt(true);
+        setLoading(false);
+        return;
     }
 
     try {
-      const response = await fetch('/api/v1/sync', {
-        headers: auth.getAuthHeaders(),
-      });
+        const response = await fetch('/api/v1/sync', {
+            headers: auth.getAuthHeaders(),
+        });
 
-      const data = await response.json();
-      if (data.status === 'success') {
-        const decryptedPasswords = await Promise.all(
-          data.data.passwords.map(async (pwd: Password) => ({
-            ...pwd,
-            password: await cipher.decrypt(pwd.password)
-          }))
-        );
-        setPasswords(decryptedPasswords);
-      }
+        const data = await response.json();
+        if (data.status === 'success') {
+            const decryptedPasswords = await Promise.all(
+                data.data.passwords.map(async (pwd: Password) => ({
+                    ...pwd,
+                    password: await cipher.decrypt(pwd.password)
+                }))
+            );
+            console.log('Decrypted passwords:', decryptedPasswords);
+            setPasswords(decryptedPasswords);
+        }
     } catch (err) {
-      setError('Failed to load passwords');
+        console.error('Failed to load passwords:', err);
+        setError('Failed to load passwords');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   useEffect(() => {
     fetchPasswords();

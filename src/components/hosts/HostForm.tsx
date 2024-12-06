@@ -53,20 +53,26 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
+    
         const cipher = CryptoSession.getCipher();
         if (!cipher) {
             setShowCryptoPrompt(true);
             return;
         }
-
+    
         try {
+            // Szyfrowanie z użyciem hex encoding
             const encryptedLogin = await cipher.encrypt(formData.login || '');
             const encryptedIp = await cipher.encrypt(formData.ip || '');
             const encryptedPort = await cipher.encrypt(formData.port || '22');
-
+    
+            console.log('Encrypted values:', {
+                login: encryptedLogin,
+                ip: encryptedIp,
+                port: encryptedPort
+            });
+    
             const hostData: Host = {
-                ...formData,
                 id: host?.id || Date.now(),
                 user_id: host?.user_id || 0,
                 created_at: host?.created_at || new Date().toISOString(),
@@ -75,9 +81,9 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
                 description: formData.description || null,
                 login: encryptedLogin,
                 ip: encryptedIp,
-                port: encryptedPort
-            } as Host;
-
+                port: encryptedPort,
+            };
+    
             await onSubmit(hostData);
         } catch (error) {
             console.error('Failed to prepare host data:', error);
