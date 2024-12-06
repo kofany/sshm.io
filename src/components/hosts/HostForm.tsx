@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Host, Password } from '@/types/host';
 import { CryptoSession } from '@/lib/crypto-session';
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
+import { Cipher } from '@/lib/crypto';
 
 interface HostFormProps {
     host: Host | null;
@@ -23,7 +24,7 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
     });
 
     useEffect(() => {
-        const loadHostData = async () => {
+        const initializeForm = async () => {
             const cipher = CryptoSession.getCipher();
             if (!cipher) {
                 setShowCryptoPrompt(true);
@@ -32,15 +33,11 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
 
             if (host) {
                 try {
-                    const decryptedLogin = await cipher.decrypt(host.login);
-                    const decryptedIp = await cipher.decrypt(host.ip);
-                    const decryptedPort = await cipher.decrypt(host.port);
-
                     setFormData({
                         ...host,
-                        login: decryptedLogin,
-                        ip: decryptedIp,
-                        port: decryptedPort
+                        login: await cipher.decrypt(host.login),
+                        ip: await cipher.decrypt(host.ip),
+                        port: await cipher.decrypt(host.port)
                     });
                 } catch (error) {
                     console.error('Failed to decrypt host data:', error);
@@ -48,12 +45,12 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
             }
         };
 
-        loadHostData();
+        initializeForm();
     }, [host]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
+        
         const cipher = CryptoSession.getCipher();
         if (!cipher) {
             setShowCryptoPrompt(true);
@@ -61,10 +58,6 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
         }
 
         try {
-            const encryptedLogin = await cipher.encrypt(formData.login || '');
-            const encryptedIp = await cipher.encrypt(formData.ip || '');
-            const encryptedPort = await cipher.encrypt(formData.port || '22');
-
             const hostData: Host = {
                 ...formData,
                 id: host?.id || Date.now(),
@@ -73,34 +66,41 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
                 password_id: Number(formData.password_id) || 0,
                 name: formData.name || '',
                 description: formData.description || null,
-                login: encryptedLogin,
-                ip: encryptedIp,
-                port: encryptedPort
+                login: formData.login || '',
+                ip: formData.ip || '',
+                port: formData.port || '22'
             } as Host;
 
-            await onSubmit(hostData);
+            // Szyfrowanie wrażliwych danych
+            const encryptedHost = {
+                ...hostData,
+                login: await cipher.encrypt(hostData.login),
+                ip: await cipher.encrypt(hostData.ip),
+                port: await cipher.encrypt(hostData.port.toString())
+            };
+
+            await onSubmit(encryptedHost);
         } catch (error) {
             console.error('Failed to prepare host data:', error);
         }
     };
-
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
+      const { name, value } = e.target;
+      setFormData(prev => ({
+          ...prev,
+          [name]: value
+      }));
+  };
 
-    const handleCryptoKeyProvided = () => {
-        setShowCryptoPrompt(false);
-    };
+  const handleCryptoKeyProvided = () => {
+      setShowCryptoPrompt(false);
+  };
 
-    if (showCryptoPrompt) {
-        return <CryptoKeyPrompt onKeyProvided={handleCryptoKeyProvided} />;
-    }
+  if (showCryptoPrompt) {
+      return <CryptoKeyPrompt onKeyProvided={handleCryptoKeyProvided} />;
+  }
 
-    return (
+  return (
       <form onSubmit={handleSubmit} className="space-y-6">
           <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">

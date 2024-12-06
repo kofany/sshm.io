@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { CryptoSession } from '@/lib/crypto-session';
+import { sendRegistrationEmail } from '@/lib/email';
 
 const RegisterPage = () => {
   const router = useRouter();
@@ -28,6 +29,7 @@ const RegisterPage = () => {
     }
 
     try {
+      console.log('Attempting registration...');
       const response = await fetch('/api/v1/register', {
         method: 'POST',
         headers: {
@@ -40,13 +42,37 @@ const RegisterPage = () => {
       });
 
       const data = await response.json();
+      console.log('Registration response:', data);
 
       if (data.status === 'success') {
-        setSuccess(true);
+        if (data.data?.confirm_token) {
+          console.log('Registration successful, sending confirmation email...');
+          try {
+            const emailResult = await sendRegistrationEmail(email, data.data.confirm_token);
+            console.log('Email sending result:', emailResult);
+            
+            if (!emailResult) {
+              console.error('Failed to send confirmation email');
+              setError('Registration successful but failed to send confirmation email. Please contact support.');
+              setLoading(false);
+              return;
+            }
+
+            setSuccess(true);
+          } catch (emailError) {
+            console.error('Error sending confirmation email:', emailError);
+            setError('Registration successful but failed to send confirmation email. Please contact support.');
+          }
+        } else {
+          console.error('No confirmation token received');
+          setError('Registration failed: No confirmation token received');
+        }
       } else {
+        console.error('Registration failed:', data.message);
         setError(data.message || 'Registration failed');
       }
     } catch (err) {
+      console.error('Registration error:', err);
       setError('Registration failed. Please try again.');
     } finally {
       setLoading(false);
