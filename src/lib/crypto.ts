@@ -1,30 +1,23 @@
 // src/lib/crypto.ts
 const KEY_SIZE = 32;
-const NONCE_SIZE = 12;
+const BLOCK_SIZE = 16; // AES block size
 
 export class Cipher {
     private readonly key: Uint8Array;
-    private readonly ALGORITHM = 'AES-GCM';
+    private readonly ALGORITHM = 'AES-CBC';
 
     constructor(encryptionKey: string) {
-        if (!encryptionKey) {
-            throw new Error('Encryption key is required');
-        }
-        // Generujemy klucz dokładnie tak jak w Go
-        const encoder = new TextEncoder();
-        const keyData = encoder.encode(encryptionKey);
-        
-        // Tworzymy hash synchronicznie
-        const hashArray = new Uint8Array(crypto.getRandomValues(new Uint8Array(32)));
-        const keyArray = new Uint8Array(keyData);
-        for (let i = 0; i < keyArray.length && i < 32; i++) {
-            hashArray[i] = keyArray[i];
-        }
-        this.key = hashArray;
+        // Klucz musi mieć 32 znaki
+        const paddedKey = encryptionKey.padEnd(32, '0').slice(0, 32);
+        this.key = new TextEncoder().encode(paddedKey);
     }
 
     async encrypt(data: string): Promise<string> {
         try {
+            // Generuj IV
+            const iv = window.crypto.getRandomValues(new Uint8Array(BLOCK_SIZE));
+            
+            // Import klucza
             const cryptoKey = await window.crypto.subtle.importKey(
                 'raw',
                 this.key,
@@ -33,46 +26,48 @@ export class Cipher {
                 ['encrypt']
             );
 
-            const nonce = window.crypto.getRandomValues(new Uint8Array(NONCE_SIZE));
+            // Padding danych PKCS7
             const encoder = new TextEncoder();
-            const encodedData = encoder.encode(data);
+            const dataBytes = encoder.encode(data);
+            const padded = this.pkcs7Pad(dataBytes);
 
-            // Najpierw szyfrujemy dane
+            // Szyfrowanie
             const encrypted = await window.crypto.subtle.encrypt(
                 {
                     name: this.ALGORITHM,
-                    iv: nonce
+                    iv: iv
                 },
                 cryptoKey,
-                encodedData
+                padded
             );
 
-            // Tworzymy wynikowy buffer z nonce i zaszyfrowanych danych
-            const combined = new Uint8Array(nonce.length + new Uint8Array(encrypted).length);
-            combined.set(nonce);
-            combined.set(new Uint8Array(encrypted), nonce.length);
+            // Połącz IV + zaszyfrowane dane
+            const combined = new Uint8Array(iv.length + new Uint8Array(encrypted).length);
+            combined.set(iv);
+            combined.set(new Uint8Array(encrypted), iv.length);
 
-            // Konwertujemy do base64
-            return btoa(String.fromCharCode(...combined));
+            // Konwertuj do hex
+            return Array.from(combined)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
         } catch (err) {
             throw new Error(`Encryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     }
 
-    async decrypt(encryptedStr: string): Promise<string> {
+    async decrypt(encryptedHex: string): Promise<string> {
         try {
-            // Dekodujemy z base64
-            const combined = new Uint8Array(
-                atob(encryptedStr)
-                    .split('')
-                    .map(char => char.charCodeAt(0))
+            // Konwertuj z hex do bytes
+            const bytes = new Uint8Array(
+                encryptedHex.match(/.{1,2}/g)!
+                    .map(byte => parseInt(byte, 16))
             );
 
-            // Wyodrębniamy nonce i zaszyfrowane dane
-            const nonce = combined.slice(0, NONCE_SIZE);
-            const ciphertext = combined.slice(NONCE_SIZE);
+            // Wydziel IV i dane
+            const iv = bytes.slice(0, BLOCK_SIZE);
+            const data = bytes.slice(BLOCK_SIZE);
 
-            // Importujemy klucz
+            // Import klucza
             const cryptoKey = await window.crypto.subtle.importKey(
                 'raw',
                 this.key,
@@ -81,32 +76,36 @@ export class Cipher {
                 ['decrypt']
             );
 
-            // Deszyfrujemy
+            // Deszyfrowanie
             const decrypted = await window.crypto.subtle.decrypt(
                 {
                     name: this.ALGORITHM,
-                    iv: nonce
+                    iv: iv
                 },
                 cryptoKey,
-                ciphertext
+                data
             );
 
-            return new TextDecoder().decode(decrypted);
+            // Usuń padding i konwertuj do string
+            const unpadded = this.pkcs7Unpad(new Uint8Array(decrypted));
+            return new TextDecoder().decode(unpadded);
         } catch (err) {
-            const errorDetails = {
-                errorType: err instanceof Error ? err.name : typeof err,
-                errorMessage: err instanceof Error ? err.message : 'Unknown error',
-                errorStack: err instanceof Error ? err.stack : undefined
-            };
-            console.error('Detailed decryption error:', errorDetails);
-            throw new Error(`Decryption failed: ${errorDetails.errorMessage}`);
+            throw new Error(`Decryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     }
-}
 
-export class CryptoError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'CryptoError';
+    // PKCS7 padding implementation
+    private pkcs7Pad(data: Uint8Array): Uint8Array {
+        const padLength = BLOCK_SIZE - (data.length % BLOCK_SIZE);
+        const padding = new Uint8Array(padLength).fill(padLength);
+        const padded = new Uint8Array(data.length + padLength);
+        padded.set(data);
+        padded.set(padding, data.length);
+        return padded;
+    }
+
+    private pkcs7Unpad(data: Uint8Array): Uint8Array {
+        const padLength = data[data.length - 1];
+        return data.slice(0, data.length - padLength);
     }
 }
