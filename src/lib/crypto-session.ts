@@ -10,8 +10,12 @@ interface CryptoSessionEventDetail {
 }
 
 // Definiujemy interfejs dla zdarzeń
+interface CryptoSessionEvent extends CustomEvent {
+  detail: CryptoSessionEventDetail;
+}
+
 interface CryptoSessionEvents {
-  'crypto_session_expired': CustomEvent<CryptoSessionEventDetail>;
+  'crypto_session_expired': CryptoSessionEvent;
 }
 
 declare global {
