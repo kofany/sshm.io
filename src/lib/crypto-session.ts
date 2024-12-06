@@ -1,6 +1,4 @@
-// src/lib/crypto-session.ts
 import { Cipher } from './crypto';
-
 const isBrowser = typeof window !== 'undefined';
 
 // Definiujemy typ dla danych zdarzenia
@@ -10,12 +8,8 @@ interface CryptoSessionEventDetail {
 }
 
 // Definiujemy interfejs dla zdarzeń
-interface CryptoSessionEvent extends CustomEvent {
-  detail: CryptoSessionEventDetail;
-}
-
 interface CryptoSessionEvents {
-  'crypto_session_expired': CryptoSessionEvent;
+  'crypto_session_expired': CustomEvent<CryptoSessionEventDetail>;
 }
 
 declare global {
