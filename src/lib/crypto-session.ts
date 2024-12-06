@@ -168,6 +168,24 @@ export class CryptoSession {
         }
     }
 
+    // W CryptoSession.ts
+    static async testKey(data: string): Promise<void> {
+        const cipher = this.getCipher();
+        if (!cipher) throw new Error('No cipher available');
+        
+        console.log('Testing encryption with stored key');
+        console.log('Original data:', data);
+        
+        const encrypted = await cipher.encrypt(data);
+        console.log('Encrypted:', encrypted);
+        
+        const decrypted = await cipher.decrypt(encrypted);
+        console.log('Decrypted:', decrypted);
+        
+        if (data !== decrypted) {
+            throw new Error('Encryption test failed - data mismatch');
+        }
+    }
     /**
      * Reset failure counter
      */

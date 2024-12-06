@@ -6,7 +6,13 @@ const KEY_SIZE = 32;
 
 export class Cipher {
     private key: Uint8Array;
-
+    private logOperation(operation: string, data: any) {
+        console.log(`[Crypto ${operation}]`, {
+            keyLength: this.key.length,
+            keyBytes: Array.from(this.key),
+            data
+        });
+    }
     constructor(password: string) {
         // Convert password to 32-byte key (same as Go)
         const encoder = new TextEncoder();
@@ -121,15 +127,15 @@ export class Cipher {
     }
 
     // Convert ArrayBuffer to hex string
+// W crypto.ts
+    private hexToArrayBuffer(hex: string): Uint8Array {
+        const matches = hex.match(/.{1,2}/g) || [];
+        return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
+    }
+
     private arrayBufferToHex(buffer: Uint8Array): string {
         return Array.from(buffer)
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
-    }
-
-    // Convert hex string to ArrayBuffer
-    private hexToArrayBuffer(hex: string): Uint8Array {
-        const matches = hex.match(/.{1,2}/g) || [];
-        return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
     }
 }
