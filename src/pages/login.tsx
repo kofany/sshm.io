@@ -34,15 +34,21 @@ const LoginPage = () => {
       const data = await response.json();
 
       if (data.status === 'success') {
-        auth.login(data.data.api_key);
-        CryptoSession.clearEncryptionKey(); // Upewniamy się, że stary klucz szyfrujący jest wyczyszczony
-        router.push('/dash');
+        try {
+          // Inicjalizacja szyfru używając hasła
+          CryptoSession.initializeSession(password);
+          auth.login(data.data.api_key);
+          router.push('/dash');
+        } catch (error) {
+          setError('Failed to initialize encryption');
+          setLoading(false);
+        }
       } else {
         setError(data.message || 'Invalid credentials');
+        setLoading(false);
       }
     } catch (err) {
       setError('Login failed. Please try again.');
-    } finally {
       setLoading(false);
     }
   };

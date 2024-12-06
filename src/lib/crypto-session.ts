@@ -4,122 +4,107 @@ import { Cipher } from './crypto';
 const isBrowser = typeof window !== 'undefined';
 
 interface CryptoSessionEvents {
-  'crypto_session_expired': CustomEvent<void>;
+    'crypto_session_expired': CustomEvent<void>;
 }
 
 declare global {
-  interface WindowEventMap extends CryptoSessionEvents {}
+    interface WindowEventMap extends CryptoSessionEvents {}
 }
 
 export class CryptoSession {
-  private static readonly STORAGE_KEY = 'encryption_key';
-  private static readonly SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minut
-  private static timeoutId: NodeJS.Timeout | null = null;
-  private static cipher: Cipher | null = null;
+    private static readonly STORAGE_KEY = 'sshm_encryption_key';
+    private static cipher: Cipher | null = null;
 
-  static getCipher(): Cipher | null {
-      if (!this.cipher && isBrowser) {
-          const key = this.getEncryptionKey();
-          if (key) {
-              try {
-                  this.cipher = new Cipher(key);
-                  // Reset timeoutu przy każdym użyciu
-                  this.resetTimeout();
-              } catch (error) {
-                  console.error('Failed to create cipher:', error);
-                  this.clearEncryptionKey();
-                  return null;
-              }
-          }
-      }
-      return this.cipher;
-  }
+    // Inicjalizacja przy logowaniu
+    static initializeSession(password: string): void {
+        if (!isBrowser) return;
 
-  static setEncryptionKey(key: string): void {
-      if (!isBrowser) return;
-      
-      try {
-          // Najpierw sprawdź czy klucz jest poprawny
-          const cipher = new Cipher(key);
-          this.cipher = cipher;
-          sessionStorage.setItem(this.STORAGE_KEY, key);
-          this.resetTimeout();
-      } catch (error) {
-          console.error('Invalid encryption key:', error);
-          this.clearEncryptionKey();
-          throw new Error('Invalid encryption key');
-      }
-  }
+        try {
+            this.cipher = new Cipher(password);
+            sessionStorage.setItem(this.STORAGE_KEY, password);
+        } catch (error) {
+            console.error('Failed to initialize crypto session:', error);
+            this.clearSession();
+            throw new Error('Failed to initialize encryption');
+        }
+    }
 
-  static getEncryptionKey(): string | null {
-      if (!isBrowser) return null;
-      
-      try {
-          const key = sessionStorage.getItem(this.STORAGE_KEY);
-          if (key) {
-              this.resetTimeout();
-          }
-          return key;
-      } catch (error) {
-          console.error('Failed to get encryption key:', error);
-          this.clearEncryptionKey();
-          return null;
-      }
-  }
+    static getCipher(): Cipher | null {
+        if (!isBrowser) return null;
 
-  static clearEncryptionKey(): void {
-      if (!isBrowser) return;
-      
-      sessionStorage.removeItem(this.STORAGE_KEY);
-      this.cipher = null;
-      if (this.timeoutId) {
-          clearTimeout(this.timeoutId);
-          this.timeoutId = null;
-      }
-      this.dispatchSessionExpired();
-  }
+        if (!this.cipher) {
+            const storedKey = sessionStorage.getItem(this.STORAGE_KEY);
+            if (storedKey) {
+                try {
+                    this.cipher = new Cipher(storedKey);
+                } catch (error) {
+                    console.error('Failed to restore cipher:', error);
+                    this.clearSession();
+                    return null;
+                }
+            }
+        }
+        return this.cipher;
+    }
 
-  private static resetTimeout(): void {
-      if (!isBrowser) return;
-      
-      if (this.timeoutId) {
-          clearTimeout(this.timeoutId);
-      }
-      this.timeoutId = setTimeout(() => {
-          // Zapisz aktualny stan przed wyczyszczeniem
-          const hadCipher = !!this.cipher;
-          
-          this.clearEncryptionKey();
-          
-          // Wyślij event tylko jeśli rzeczywiście był cipher
-          if (hadCipher) {
-              this.dispatchSessionExpired();
-          }
-      }, this.SESSION_TIMEOUT);
-  }
+    static getEncryptionKey(): string | null {
+        if (!isBrowser) return null;
+        return sessionStorage.getItem(this.STORAGE_KEY);
+    }
 
-  private static dispatchSessionExpired(): void {
-      if (!isBrowser) return;
-      
-      window.dispatchEvent(new CustomEvent('crypto_session_expired'));
-  }
+    static clearSession(): void {
+        if (!isBrowser) return;
 
-  static checkSessionTimeout(): boolean {
-      if (!isBrowser) return false;
-      
-      const key = this.getEncryptionKey();
-      if (key) {
-          try {
-              // Sprawdź czy klucz jest nadal poprawny
-              const cipher = new Cipher(key);
-              this.cipher = cipher;
-              this.resetTimeout();
-              return true;
-          } catch (error) {
-              this.clearEncryptionKey();
-              return false;
-          }
-      }
-      return false;
-  }
+        this.cipher = null;
+        sessionStorage.removeItem(this.STORAGE_KEY);
+        try {
+            window.dispatchEvent(new CustomEvent('crypto_session_expired'));
+        } catch (error) {
+            console.error('Failed to dispatch session expired event:', error);
+        }
+    }
+
+    // Weryfikacja czy sesja jest aktywna i ważna
+    static async validateSession(): Promise<boolean> {
+        if (!isBrowser) return false;
+
+        const cipher = this.getCipher();
+        if (!cipher) return false;
+
+        try {
+            const testData = 'test';
+            const encrypted = await cipher.encrypt(testData);
+            const decrypted = await cipher.decrypt(encrypted);
+            return decrypted === testData;
+        } catch (error) {
+            console.error('Session validation failed:', error);
+            this.clearSession();
+            return false;
+        }
+    }
+
+    // Pomocnicza metoda do szyfrowania
+    static async encrypt(data: string): Promise<string> {
+        const cipher = this.getCipher();
+        if (!cipher) {
+            throw new Error('No active encryption session');
+        }
+        return cipher.encrypt(data);
+    }
+
+    // Pomocnicza metoda do deszyfrowania
+    static async decrypt(data: string): Promise<string> {
+        const cipher = this.getCipher();
+        if (!cipher) {
+            throw new Error('No active encryption session');
+        }
+        return cipher.decrypt(data);
+    }
+}
+
+export class CryptoError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'CryptoError';
+    }
 }
