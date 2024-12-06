@@ -13,7 +13,7 @@ const IndexPage: React.FC = () => {
             <div className="flex items-center">
               <Image
                 src="/logo.svg"
-                alt="sshm.io Logo"
+                alt="SSHM.io Logo"
                 width={160}
                 height={40}
                 priority

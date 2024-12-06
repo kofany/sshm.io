@@ -7,26 +7,6 @@ import { Host, Password } from '@/types/host';
 import { auth } from '@/lib/auth';
 import { CryptoSession } from '@/lib/crypto-session';
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
-import { Cipher } from '@/lib/crypto';
-
-// Funkcje szyfrowania/deszyfrowania
-const encryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
-  return {
-    ...host,
-    login: await cipher.encrypt(host.login),
-    ip: await cipher.encrypt(host.ip),
-    port: await cipher.encrypt(host.port)
-  };
-};
-
-const decryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
-  return {
-    ...host,
-    login: await cipher.decrypt(host.login),
-    ip: await cipher.decrypt(host.ip),
-    port: await cipher.decrypt(host.port)
-  };
-};
 
 const HostsPage = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -93,31 +73,20 @@ const HostsPage = () => {
     }
 
     try {
-      // Pobierz aktualną listę hostów
       const response = await fetch('/api/v1/sync', {
+        method: 'POST',
         headers: auth.getAuthHeaders(),
+        body: JSON.stringify({
+          data: {
+            hosts: [] // Wysyłamy pustą listę aby usunąć hosta
+          }
+        })
       });
 
-      const data = await response.json();
-      if (data.status === 'success') {
-        // Usuń wybranego hosta i wyślij zaktualizowaną listę
-        const updatedHosts = data.data.hosts.filter((h: Host) => h.id !== host.id);
-        
-        const syncResponse = await fetch('/api/v1/sync', {
-          method: 'POST',
-          headers: auth.getAuthHeaders(),
-          body: JSON.stringify({
-            data: {
-              hosts: updatedHosts
-            }
-          })
-        });
-
-        if (syncResponse.ok) {
-          window.location.reload();
-        } else {
-          setError('Failed to delete host');
-        }
+      if (response.ok) {
+        window.location.reload(); // Odświeżamy stronę aby pobrać aktualną listę
+      } else {
+        setError('Failed to delete host');
       }
     } catch (err) {
       setError('Failed to delete host');
@@ -132,9 +101,6 @@ const HostsPage = () => {
     }
 
     try {
-      // Szyfrujemy dane hosta
-      const encryptedHostData = await encryptHost(hostData, cipher);
-
       // Pobieramy aktualną listę hostów
       const response = await fetch('/api/v1/sync', {
         headers: auth.getAuthHeaders(),
@@ -145,9 +111,9 @@ const HostsPage = () => {
 
       // Aktualizujemy lub dodajemy nowego hosta
       if (currentHost) {
-        hosts = hosts.map((h: Host) => h.id === currentHost.id ? encryptedHostData : h);
+        hosts = hosts.map((h: Host) => h.id === currentHost.id ? hostData : h);
       } else {
-        hosts = [...hosts, encryptedHostData];
+        hosts = [...hosts, hostData];
       }
 
       // Synchronizujemy z serwerem
@@ -167,7 +133,6 @@ const HostsPage = () => {
         setError('Failed to save host');
       }
     } catch (err) {
-      console.error('Error saving host:', err);
       setError('Failed to save host');
     }
   };
