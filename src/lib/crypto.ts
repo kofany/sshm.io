@@ -1,70 +1,79 @@
 // src/lib/crypto.ts
-import { secretbox, randomBytes } from 'tweetnacl';
-import { encodeBase64, decodeBase64 } from 'tweetnacl-util';
-import { SHA256 } from 'crypto-js';
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
 
 const KEY_SIZE = 32;
-const NONCE_SIZE = 24;
+const NONCE_SIZE = 12; // AES-GCM uses 12 bytes nonce
 
 export class Cipher {
-    private key: Uint8Array;
+    private readonly key: Buffer;
+    private readonly ALGORITHM = 'aes-256-gcm';
 
     constructor(password: string) {
-        // Generowanie klucza z hasła używając SHA-256, tak samo jak w Go
-        const hash = SHA256(password);
-        this.key = new Uint8Array(KEY_SIZE);
-        
-        // Konwertujemy hash na Uint8Array tak samo jak w Go
-        const hashBytes = Buffer.from(hash.toString(), 'hex');
-        this.key.set(hashBytes.slice(0, KEY_SIZE));
+        // Generate key from password using SHA-256, same as Go
+        const hash = createHash('sha256');
+        hash.update(password);
+        this.key = Buffer.from(hash.digest());
     }
 
     async encrypt(data: string): Promise<string> {
-        // Generujemy nonce
-        const nonce = randomBytes(NONCE_SIZE);
+        try {
+            // Generate nonce
+            const nonce = randomBytes(NONCE_SIZE);
 
-        // Konwertujemy string na Uint8Array
-        const messageUint8 = new TextEncoder().encode(data);
+            // Create cipher
+            const cipher = createCipheriv(this.ALGORITHM, this.key, nonce);
 
-        // Szyfrujemy używając secretbox (kompatybilne z Go)
-        const encrypted = secretbox(messageUint8, nonce, this.key);
+            // Encrypt
+            const encryptedBuffer = Buffer.concat([
+                cipher.update(data, 'utf8'),
+                cipher.final()
+            ]);
 
-        // Łączymy nonce i zaszyfrowane dane
-        const fullMessage = new Uint8Array(nonce.length + encrypted.length);
-        fullMessage.set(nonce);
-        fullMessage.set(encrypted, nonce.length);
+            // Get auth tag
+            const authTag = cipher.getAuthTag();
 
-        // Kodujemy do base64 (standardowe kodowanie)
-        return encodeBase64(fullMessage);
+            // Combine nonce + encrypted data + auth tag (same format as Go)
+            const combined = Buffer.concat([
+                nonce,
+                encryptedBuffer,
+                authTag
+            ]);
+
+            // Return as base64 (standard encoding)
+            return combined.toString('base64');
+        } catch (err) {
+            throw new Error(`Encryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
     }
 
     async decrypt(encryptedStr: string): Promise<string> {
         try {
-            // Dekodujemy z base64
-            const encrypted = decodeBase64(encryptedStr);
+            // Decode from base64
+            const encrypted = Buffer.from(encryptedStr, 'base64');
 
-            // Sprawdzamy długość
+            // Check minimum length
             if (encrypted.length < NONCE_SIZE) {
                 throw new Error('encrypted data too short');
             }
 
-            // Wyodrębniamy nonce
+            // Extract parts
             const nonce = encrypted.slice(0, NONCE_SIZE);
-            const message = encrypted.slice(NONCE_SIZE);
+            const authTag = encrypted.slice(-16); // GCM auth tag is always 16 bytes
+            const ciphertext = encrypted.slice(NONCE_SIZE, -16);
 
-            // Deszyfrujemy
-            const decrypted = secretbox.open(message, nonce, this.key);
-            if (!decrypted) {
-                throw new Error('decryption failed');
-            }
+            // Create decipher
+            const decipher = createDecipheriv(this.ALGORITHM, this.key, nonce);
+            decipher.setAuthTag(authTag);
 
-            // Konwertujemy z powrotem na string
-            return new TextDecoder().decode(decrypted);
+            // Decrypt
+            const decrypted = Buffer.concat([
+                decipher.update(ciphertext),
+                decipher.final()
+            ]);
+
+            return decrypted.toString('utf8');
         } catch (err) {
-            if (err instanceof Error) {
-                throw new Error(`Decryption error: ${err.message}`);
-            }
-            throw new Error('Unknown decryption error');
+            throw new Error(`Decryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     }
 
@@ -78,16 +87,19 @@ export class Cipher {
         }
     }
 
-    static generateKeyFromPassword(password: string): Uint8Array {
-        // Dopełniamy hasło do 32 bajtów
-        const paddedPass = new Uint8Array(32);
-        const passBytes = new TextEncoder().encode(password);
-        paddedPass.set(passBytes);
+    static generateKeyFromPassword(password: string): Buffer {
+        // Pad password to 32 bytes
+        const paddedPass = Buffer.alloc(32);
+        paddedPass.write(password);
 
-        // Kodujemy using base64 i bierzemy pierwsze 32 znaki
-        return new TextEncoder().encode(
-            Buffer.from(paddedPass).toString('base64').substring(0, 32)
+        // Encode using base64 and take first 32 chars
+        return Buffer.from(
+            paddedPass.toString('base64').substring(0, 32)
         );
+    }
+
+    static generateSecureKey(): Buffer {
+        return randomBytes(KEY_SIZE);
     }
 }
 
@@ -97,3 +109,4 @@ export class CryptoError extends Error {
         this.name = 'CryptoError';
     }
 }
+
