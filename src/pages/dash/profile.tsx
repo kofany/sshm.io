@@ -52,42 +52,9 @@ const ProfilePage = () => {
   };
 
   useEffect(() => {
-    const checkAuthAndFetchData = async () => {
-      if (!auth.getApiKey()) {
-        setError('Unauthorized');
-        setLoading(false);
-        return;
-      }
-  
-      const cipher = CryptoSession.getCipher();
-      if (!cipher) {
-        setShowCryptoPrompt(true);
-        setLoading(false);
-        return;
-      }
-  
-      try {
-        const response = await fetch('/api/v1/user/info', {
-          headers: auth.getAuthHeaders(),
-        });
-  
-        const data = await response.json();
-        if (data.status === 'success') {
-          setUserData(data.data);
-          setError('');
-        } else {
-          setError(data.message);
-        }
-      } catch (err) {
-        setError('Failed to load user data');
-      } finally {
-        setLoading(false);
-      }
-    };
-  
-    checkAuthAndFetchData();
+    fetchUserData();
   }, []);
-  
+
   const handleUpdateEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
