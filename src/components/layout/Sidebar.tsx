@@ -40,7 +40,7 @@ const Sidebar = () => {
       <div className="flex flex-col h-full">
         {/* Logo */}
         <div className="p-6">
-          <h1 className="text-2xl font-bold text-gray-900">SSHM.io</h1>
+          <h1 className="text-2xl font-bold text-gray-900">sshm.io</h1>
         </div>
 
         {/* Menu */}
