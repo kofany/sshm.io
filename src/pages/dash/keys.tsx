@@ -131,11 +131,14 @@ const KeysPage = () => {
     }
   };
 
-  const handleCopyToClipboard = async (text: string) => {
+  const handleCopyToClipboard = async (text: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (err) {
-      setError('Failed to copy to clipboard');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError('Failed to copy to clipboard');
+        console.error('Copy error:', error.message);
+      }
     }
   };
 

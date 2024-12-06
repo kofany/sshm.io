@@ -57,13 +57,17 @@ const ApiKeyPage = () => {
     }
   };
 
-  const handleCopyToClipboard = async () => {
+  const handleCopyToClipboard = async (text: string): Promise<void> => {
     try {
-      await navigator.clipboard.writeText(apiKey);
-    } catch (err) {
-      setError('Failed to copy to clipboard');
+      await navigator.clipboard.writeText(text);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError('Failed to copy to clipboard');
+        console.error('Copy error:', error.message);
+      }
     }
   };
+  
 
   const handleCryptoKeyProvided = () => {
     setShowCryptoPrompt(false);
@@ -102,7 +106,7 @@ const ApiKeyPage = () => {
                 />
                 <button
                   type="button"
-                  onClick={handleCopyToClipboard}
+                  onClick={() => handleCopyToClipboard(apiKey)}  // Zawijamy w funkcję strzałkową
                   className="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 >
                   Copy

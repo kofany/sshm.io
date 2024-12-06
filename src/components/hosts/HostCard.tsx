@@ -77,11 +77,13 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
     }
   };
 
-  const handleCopyToClipboard = async (text: string) => {
+  const handleCopyToClipboard = async (text: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Failed to copy to clipboard:', error.message);
+      }
     }
   };
 

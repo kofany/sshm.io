@@ -4,7 +4,7 @@ import { Cipher } from './crypto';
 const isBrowser = typeof window !== 'undefined';
 
 interface CryptoSessionEvents {
-  'crypto_session_expired': CustomEvent<void>;
+  'crypto_session_expired': CustomEvent<null>;  // dodajemy konkretny typ
 }
 
 declare global {

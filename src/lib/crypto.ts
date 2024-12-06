@@ -62,13 +62,12 @@ export class Cipher {
     return new TextDecoder().decode(decrypted);
   }
 
-  static validateKey(cipher: Cipher, testData: string): Promise<boolean> {
+  static validateKey(cipher: Cipher): Promise<boolean> {
     return cipher.encrypt('test')
       .then(encrypted => cipher.decrypt(encrypted))
       .then(decrypted => decrypted === 'test')
       .catch(() => false);
-  }
-
+}
   static generateKeyFromPassword(password: string): Uint8Array {
     // Dopełniamy hasło do 32 bajtów
     const paddedPass = new Uint8Array(32);
