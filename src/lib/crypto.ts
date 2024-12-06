@@ -10,22 +10,21 @@ export class Cipher {
         if (!encryptionKey) {
             throw new Error('Encryption key is required');
         }
-        // Tworzymy hash z encryption key - identycznie jak w Go
+        // Generujemy klucz dokładnie tak jak w Go
         const encoder = new TextEncoder();
         const keyData = encoder.encode(encryptionKey);
         
-        // Synchroniczne tworzenie hash'a
-        const hashArray = new Uint8Array(32);
-        crypto.getRandomValues(hashArray);
-        for (let i = 0; i < keyData.length && i < 32; i++) {
-            hashArray[i] = keyData[i];
+        // Tworzymy hash synchronicznie
+        const hashArray = new Uint8Array(crypto.getRandomValues(new Uint8Array(32)));
+        const keyArray = new Uint8Array(keyData);
+        for (let i = 0; i < keyArray.length && i < 32; i++) {
+            hashArray[i] = keyArray[i];
         }
         this.key = hashArray;
     }
 
     async encrypt(data: string): Promise<string> {
         try {
-            // Importujemy klucz w formacie odpowiednim dla Web Crypto API
             const cryptoKey = await window.crypto.subtle.importKey(
                 'raw',
                 this.key,
@@ -34,11 +33,11 @@ export class Cipher {
                 ['encrypt']
             );
 
-            // Generujemy nonce
             const nonce = window.crypto.getRandomValues(new Uint8Array(NONCE_SIZE));
+            const encoder = new TextEncoder();
+            const encodedData = encoder.encode(data);
 
-            // Szyfrujemy dane
-            const encodedData = new TextEncoder().encode(data);
+            // Najpierw szyfrujemy dane
             const encrypted = await window.crypto.subtle.encrypt(
                 {
                     name: this.ALGORITHM,
@@ -48,12 +47,12 @@ export class Cipher {
                 encodedData
             );
 
-            // Łączymy nonce + zaszyfrowane dane (tak samo jak w Go)
+            // Tworzymy wynikowy buffer z nonce i zaszyfrowanych danych
             const combined = new Uint8Array(nonce.length + new Uint8Array(encrypted).length);
             combined.set(nonce);
             combined.set(new Uint8Array(encrypted), nonce.length);
 
-            // Konwertujemy do base64 (tak samo jak w Go)
+            // Konwertujemy do base64
             return btoa(String.fromCharCode(...combined));
         } catch (err) {
             throw new Error(`Encryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -62,24 +61,17 @@ export class Cipher {
 
     async decrypt(encryptedStr: string): Promise<string> {
         try {
-            console.log('Starting decryption of:', encryptedStr);
-            
             // Dekodujemy z base64
             const combined = new Uint8Array(
                 atob(encryptedStr)
                     .split('')
                     .map(char => char.charCodeAt(0))
             );
-            
-            console.log('Decoded from base64, length:', combined.length);
-    
+
             // Wyodrębniamy nonce i zaszyfrowane dane
             const nonce = combined.slice(0, NONCE_SIZE);
             const ciphertext = combined.slice(NONCE_SIZE);
-            
-            console.log('Nonce length:', nonce.length);
-            console.log('Ciphertext length:', ciphertext.length);
-    
+
             // Importujemy klucz
             const cryptoKey = await window.crypto.subtle.importKey(
                 'raw',
@@ -88,9 +80,7 @@ export class Cipher {
                 false,
                 ['decrypt']
             );
-            
-            console.log('Key imported successfully');
-    
+
             // Deszyfrujemy
             const decrypted = await window.crypto.subtle.decrypt(
                 {
@@ -100,33 +90,16 @@ export class Cipher {
                 cryptoKey,
                 ciphertext
             );
-            
-            console.log('Decryption successful');
-    
-            const result = new TextDecoder().decode(decrypted);
-            console.log('Decoded result length:', result.length);
-            
-            return result;
-        } catch (err: unknown) {
+
+            return new TextDecoder().decode(decrypted);
+        } catch (err) {
             const errorDetails = {
                 errorType: err instanceof Error ? err.name : typeof err,
                 errorMessage: err instanceof Error ? err.message : 'Unknown error',
                 errorStack: err instanceof Error ? err.stack : undefined
             };
-    
             console.error('Detailed decryption error:', errorDetails);
-            
             throw new Error(`Decryption failed: ${errorDetails.errorMessage}`);
-        }
-    }
-
-    static async validateKey(cipher: Cipher, testData: string = 'test'): Promise<boolean> {
-        try {
-            const encrypted = await cipher.encrypt(testData);
-            const decrypted = await cipher.decrypt(encrypted);
-            return decrypted === testData;
-        } catch {
-            return false;
         }
     }
 }
