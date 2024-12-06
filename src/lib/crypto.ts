@@ -1,23 +1,37 @@
 // src/lib/crypto.ts
-const KEY_SIZE = 32;
-const BLOCK_SIZE = 16; // AES block size
+const NONCE_SIZE = 12;
+const AUTH_TAG_SIZE = 16;
 
 export class Cipher {
-    private readonly key: Uint8Array;
-    private readonly ALGORITHM = 'AES-CBC';
+    private key: Uint8Array;
+    private readonly ALGORITHM = 'AES-GCM';
 
     constructor(encryptionKey: string) {
-        // Klucz musi mieć 32 znaki
-        const paddedKey = encryptionKey.padEnd(32, '0').slice(0, 32);
-        this.key = new TextEncoder().encode(paddedKey);
+        // Synchroniczne tworzenie klucza z SHA-256
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(encryptionKey);
+        const hashArray = new Uint8Array(32); // 32 bytes for SHA-256
+        
+        // Tymczasowa inicjalizacja klucza
+        for (let i = 0; i < keyData.length && i < 32; i++) {
+            hashArray[i] = keyData[i];
+        }
+        this.key = hashArray;
+    }
+
+    async initializeKey(encryptionKey: string): Promise<void> {
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(encryptionKey);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', keyData);
+        this.key = new Uint8Array(hashBuffer);
     }
 
     async encrypt(data: string): Promise<string> {
         try {
-            // Generuj IV
-            const iv = window.crypto.getRandomValues(new Uint8Array(BLOCK_SIZE));
-            
-            // Import klucza
+            // Generujemy nonce
+            const nonce = window.crypto.getRandomValues(new Uint8Array(NONCE_SIZE));
+
+            // Importujemy klucz
             const cryptoKey = await window.crypto.subtle.importKey(
                 'raw',
                 this.key,
@@ -26,48 +40,43 @@ export class Cipher {
                 ['encrypt']
             );
 
-            // Padding danych PKCS7
+            // Szyfrujemy
             const encoder = new TextEncoder();
-            const dataBytes = encoder.encode(data);
-            const padded = this.pkcs7Pad(dataBytes);
-
-            // Szyfrowanie
             const encrypted = await window.crypto.subtle.encrypt(
                 {
                     name: this.ALGORITHM,
-                    iv: iv
+                    iv: nonce
                 },
                 cryptoKey,
-                padded
+                encoder.encode(data)
             );
 
-            // Połącz IV + zaszyfrowane dane
-            const combined = new Uint8Array(iv.length + new Uint8Array(encrypted).length);
-            combined.set(iv);
-            combined.set(new Uint8Array(encrypted), iv.length);
+            // Łączymy nonce + encrypted (auth tag jest automatycznie dodany przez Web Crypto)
+            const combined = new Uint8Array(nonce.length + new Uint8Array(encrypted).length);
+            combined.set(nonce);
+            combined.set(new Uint8Array(encrypted), nonce.length);
 
-            // Konwertuj do hex
-            return Array.from(combined)
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
+            // Konwertujemy do base64 tak jak w Go
+            return btoa(String.fromCharCode(...combined));
         } catch (err) {
             throw new Error(`Encryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     }
 
-    async decrypt(encryptedHex: string): Promise<string> {
+    async decrypt(encryptedStr: string): Promise<string> {
         try {
-            // Konwertuj z hex do bytes
-            const bytes = new Uint8Array(
-                encryptedHex.match(/.{1,2}/g)!
-                    .map(byte => parseInt(byte, 16))
+            // Dekodujemy z base64
+            const combined = new Uint8Array(
+                atob(encryptedStr)
+                    .split('')
+                    .map(char => char.charCodeAt(0))
             );
 
-            // Wydziel IV i dane
-            const iv = bytes.slice(0, BLOCK_SIZE);
-            const data = bytes.slice(BLOCK_SIZE);
+            // Wyodrębniamy nonce i dane
+            const nonce = combined.slice(0, NONCE_SIZE);
+            const ciphertext = combined.slice(NONCE_SIZE);
 
-            // Import klucza
+            // Importujemy klucz
             const cryptoKey = await window.crypto.subtle.importKey(
                 'raw',
                 this.key,
@@ -76,36 +85,26 @@ export class Cipher {
                 ['decrypt']
             );
 
-            // Deszyfrowanie
+            // Deszyfrujemy (Web Crypto automatycznie weryfikuje auth tag)
             const decrypted = await window.crypto.subtle.decrypt(
                 {
                     name: this.ALGORITHM,
-                    iv: iv
+                    iv: nonce
                 },
                 cryptoKey,
-                data
+                ciphertext
             );
 
-            // Usuń padding i konwertuj do string
-            const unpadded = this.pkcs7Unpad(new Uint8Array(decrypted));
-            return new TextDecoder().decode(unpadded);
+            return new TextDecoder().decode(decrypted);
         } catch (err) {
             throw new Error(`Decryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     }
+}
 
-    // PKCS7 padding implementation
-    private pkcs7Pad(data: Uint8Array): Uint8Array {
-        const padLength = BLOCK_SIZE - (data.length % BLOCK_SIZE);
-        const padding = new Uint8Array(padLength).fill(padLength);
-        const padded = new Uint8Array(data.length + padLength);
-        padded.set(data);
-        padded.set(padding, data.length);
-        return padded;
-    }
-
-    private pkcs7Unpad(data: Uint8Array): Uint8Array {
-        const padLength = data[data.length - 1];
-        return data.slice(0, data.length - padLength);
+export class CryptoError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'CryptoError';
     }
 }
