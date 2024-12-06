@@ -30,25 +30,23 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
                 setShowCryptoPrompt(true);
                 return;
             }
-    
+
             if (host) {
                 try {
                     setFormData({
                         ...host,
-                        login: await cipher.decrypt(host.login),    // Deszyfrowanie
-                        ip: await cipher.decrypt(host.ip),          // Deszyfrowanie
-                        port: await cipher.decrypt(host.port)       // Deszyfrowanie
+                        login: await cipher.decrypt(host.login),
+                        ip: await cipher.decrypt(host.ip),
+                        port: await cipher.decrypt(host.port)
                     });
                 } catch (error) {
                     console.error('Failed to decrypt host data:', error);
                 }
             }
         };
-    
+
         initializeForm();
     }, [host]);
-    
-    
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,7 +56,7 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
             setShowCryptoPrompt(true);
             return;
         }
-    
+
         try {
             const hostData: Host = {
                 ...formData,
@@ -68,17 +66,24 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
                 password_id: Number(formData.password_id) || 0,
                 name: formData.name || '',
                 description: formData.description || null,
-                login: await cipher.encrypt(formData.login || ''),  // Szyfrowanie
-                ip: await cipher.encrypt(formData.ip || ''),        // Szyfrowanie
-                port: await cipher.encrypt(formData.port || '22')   // Szyfrowanie
+                login: formData.login || '',
+                ip: formData.ip || '',
+                port: formData.port || '22'
             } as Host;
-    
-            await onSubmit(hostData);
+
+            // Szyfrowanie wrażliwych danych
+            const encryptedHost = {
+                ...hostData,
+                login: await cipher.encrypt(hostData.login),
+                ip: await cipher.encrypt(hostData.ip),
+                port: await cipher.encrypt(hostData.port.toString())
+            };
+
+            await onSubmit(encryptedHost);
         } catch (error) {
             console.error('Failed to prepare host data:', error);
         }
     };
-    
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
       setFormData(prev => ({
