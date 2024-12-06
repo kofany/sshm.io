@@ -14,9 +14,11 @@ declare global {
 export class CryptoSession {
     private static readonly STORAGE_KEY = 'sshm_encryption_key';
     private static cipher: Cipher | null = null;
+    private static encryptionFailureCount: number = 0;
+    private static readonly MAX_FAILURES = 3;
 
     /**
-     * Initialize encryption session with provided key
+     * Initialize encryption session with provided encryption key
      */
     static initializeSession(encryptionKey: string): void {
         if (!isBrowser) return;
@@ -24,6 +26,7 @@ export class CryptoSession {
         try {
             this.cipher = new Cipher(encryptionKey);
             sessionStorage.setItem(this.STORAGE_KEY, encryptionKey);
+            this.encryptionFailureCount = 0;
         } catch (error) {
             console.error('Failed to initialize crypto session:', error);
             this.clearSession();
@@ -67,6 +70,7 @@ export class CryptoSession {
         if (!isBrowser) return;
 
         this.cipher = null;
+        this.encryptionFailureCount = 0;
         sessionStorage.removeItem(this.STORAGE_KEY);
         
         try {
@@ -77,7 +81,7 @@ export class CryptoSession {
     }
 
     /**
-     * Validate encryption session by performing test encryption/decryption
+     * Validate encryption key and cipher by performing a test encryption/decryption
      */
     static async validateSession(): Promise<boolean> {
         if (!isBrowser) return false;
@@ -89,10 +93,17 @@ export class CryptoSession {
             const testData = 'test';
             const encrypted = await cipher.encrypt(testData);
             const decrypted = await cipher.decrypt(encrypted);
-            return decrypted === testData;
+            
+            if (decrypted === testData) {
+                this.encryptionFailureCount = 0;
+                return true;
+            }
+            
+            this.handleEncryptionFailure();
+            return false;
         } catch (error) {
             console.error('Session validation failed:', error);
-            this.clearSession();
+            this.handleEncryptionFailure();
             return false;
         }
     }
@@ -103,9 +114,17 @@ export class CryptoSession {
     static async encrypt(data: string): Promise<string> {
         const cipher = this.getCipher();
         if (!cipher) {
-            throw new Error('No active encryption session');
+            throw new CryptoError('No active encryption session');
         }
-        return cipher.encrypt(data);
+
+        try {
+            const result = await cipher.encrypt(data);
+            this.encryptionFailureCount = 0;
+            return result;
+        } catch (error) {
+            this.handleEncryptionFailure();
+            throw error;
+        }
     }
 
     /**
@@ -114,54 +133,43 @@ export class CryptoSession {
     static async decrypt(data: string): Promise<string> {
         const cipher = this.getCipher();
         if (!cipher) {
-            throw new Error('No active encryption session');
+            throw new CryptoError('No active encryption session');
         }
-        return cipher.decrypt(data);
+
+        try {
+            const result = await cipher.decrypt(data);
+            this.encryptionFailureCount = 0;
+            return result;
+        } catch (error) {
+            this.handleEncryptionFailure();
+            throw error;
+        }
     }
 
     /**
      * Check if there is an active encryption session
      */
     static hasActiveSession(): boolean {
-        return this.getCipher() !== null;
+        return this.getCipher() !== null && this.getEncryptionKey() !== null;
     }
 
     /**
-     * Helper method to migrate encryption key if needed
-     * (e.g., when changing encryption key)
+     * Handle encryption/decryption failures
      */
-    static async migrateEncryptionKey(oldKey: string, newKey: string, data: any): Promise<any> {
-        const oldCipher = new Cipher(oldKey);
-        const newCipher = new Cipher(newKey);
-
-        try {
-            // Helper function to process nested objects
-            const processObject = async (obj: any): Promise<any> => {
-                if (typeof obj !== 'object' || obj === null) return obj;
-
-                const result: any = Array.isArray(obj) ? [] : {};
-
-                for (const [key, value] of Object.entries(obj)) {
-                    if (typeof value === 'string' && value.startsWith('encrypted:')) {
-                        // Decrypt with old key and encrypt with new key
-                        const decrypted = await oldCipher.decrypt(value.substring(10));
-                        const encrypted = await newCipher.encrypt(decrypted);
-                        result[key] = `encrypted:${encrypted}`;
-                    } else if (typeof value === 'object' && value !== null) {
-                        result[key] = await processObject(value);
-                    } else {
-                        result[key] = value;
-                    }
-                }
-
-                return result;
-            };
-
-            return await processObject(data);
-        } catch (error) {
-            console.error('Failed to migrate encryption key:', error);
-            throw new Error('Encryption key migration failed');
+    private static handleEncryptionFailure(): void {
+        this.encryptionFailureCount++;
+        
+        if (this.encryptionFailureCount >= this.MAX_FAILURES) {
+            console.error('Maximum encryption failures reached, clearing session');
+            this.clearSession();
         }
+    }
+
+    /**
+     * Reset failure counter
+     */
+    static resetFailureCount(): void {
+        this.encryptionFailureCount = 0;
     }
 }
 

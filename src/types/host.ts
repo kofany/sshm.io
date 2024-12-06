@@ -15,6 +15,15 @@ export interface Password {
   id: number;
   user_id: number;
   description: string | null;
-  password: string; // zaszyfrowane hasło
+  password: string;
+  created_at: string;
+}
+
+export interface Key {
+  id: number;
+  user_id: number;
+  description: string;
+  key_data: string | null;  // zawartość klucza SSH
+  path: string | null;      // ścieżka do pliku klucza w systemie
   created_at: string;
 }
