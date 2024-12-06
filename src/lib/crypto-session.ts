@@ -24,6 +24,7 @@ export class CryptoSession {
         if (!isBrowser) return;
 
         try {
+            // Tworzymy nowy cipher używając encryption key (salt)
             this.cipher = new Cipher(encryptionKey);
             sessionStorage.setItem(this.STORAGE_KEY, encryptionKey);
             this.encryptionFailureCount = 0;
@@ -114,7 +115,7 @@ export class CryptoSession {
     static async encrypt(data: string): Promise<string> {
         const cipher = this.getCipher();
         if (!cipher) {
-            throw new CryptoError('No active encryption session');
+            throw new Error('No active encryption session');
         }
 
         try {
@@ -133,7 +134,7 @@ export class CryptoSession {
     static async decrypt(data: string): Promise<string> {
         const cipher = this.getCipher();
         if (!cipher) {
-            throw new CryptoError('No active encryption session');
+            throw new Error('No active encryption session');
         }
 
         try {

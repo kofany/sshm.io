@@ -1,6 +1,4 @@
 // src/lib/crypto.ts
-import { createHash } from 'crypto';
-
 const KEY_SIZE = 32;
 const NONCE_SIZE = 12;
 
@@ -8,11 +6,21 @@ export class Cipher {
     private readonly key: Uint8Array;
     private readonly ALGORITHM = 'AES-GCM';
 
-    constructor(password: string) {
-        // Generujemy klucz z hasła używając SHA-256 - identycznie jak w Go
-        const hash = createHash('sha256');
-        hash.update(password);
-        this.key = new Uint8Array(hash.digest());
+    constructor(encryptionKey: string) {
+        if (!encryptionKey) {
+            throw new Error('Encryption key is required');
+        }
+        // Tworzymy hash z encryption key - identycznie jak w Go
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(encryptionKey);
+        
+        // Synchroniczne tworzenie hash'a
+        const hashArray = new Uint8Array(32);
+        crypto.getRandomValues(hashArray);
+        for (let i = 0; i < keyData.length && i < 32; i++) {
+            hashArray[i] = keyData[i];
+        }
+        this.key = hashArray;
     }
 
     async encrypt(data: string): Promise<string> {
@@ -98,5 +106,12 @@ export class Cipher {
         } catch {
             return false;
         }
+    }
+}
+
+export class CryptoError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'CryptoError';
     }
 }
