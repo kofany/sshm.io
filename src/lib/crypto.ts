@@ -62,17 +62,24 @@ export class Cipher {
 
     async decrypt(encryptedStr: string): Promise<string> {
         try {
+            console.log('Starting decryption of:', encryptedStr);
+            
             // Dekodujemy z base64
             const combined = new Uint8Array(
                 atob(encryptedStr)
                     .split('')
                     .map(char => char.charCodeAt(0))
             );
-
+            
+            console.log('Decoded from base64, length:', combined.length);
+    
             // Wyodrębniamy nonce i zaszyfrowane dane
             const nonce = combined.slice(0, NONCE_SIZE);
             const ciphertext = combined.slice(NONCE_SIZE);
-
+            
+            console.log('Nonce length:', nonce.length);
+            console.log('Ciphertext length:', ciphertext.length);
+    
             // Importujemy klucz
             const cryptoKey = await window.crypto.subtle.importKey(
                 'raw',
@@ -81,7 +88,9 @@ export class Cipher {
                 false,
                 ['decrypt']
             );
-
+            
+            console.log('Key imported successfully');
+    
             // Deszyfrujemy
             const decrypted = await window.crypto.subtle.decrypt(
                 {
@@ -91,10 +100,23 @@ export class Cipher {
                 cryptoKey,
                 ciphertext
             );
-
-            return new TextDecoder().decode(decrypted);
-        } catch (err) {
-            throw new Error(`Decryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            
+            console.log('Decryption successful');
+    
+            const result = new TextDecoder().decode(decrypted);
+            console.log('Decoded result length:', result.length);
+            
+            return result;
+        } catch (err: unknown) {
+            const errorDetails = {
+                errorType: err instanceof Error ? err.name : typeof err,
+                errorMessage: err instanceof Error ? err.message : 'Unknown error',
+                errorStack: err instanceof Error ? err.stack : undefined
+            };
+    
+            console.error('Detailed decryption error:', errorDetails);
+            
+            throw new Error(`Decryption failed: ${errorDetails.errorMessage}`);
         }
     }
 

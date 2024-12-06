@@ -14,15 +14,58 @@ interface HostsListProps {
 
 const decryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
   try {
+      console.log('Decrypting host with data:', {
+          id: host.id,
+          encrypted_login: host.login,
+          encrypted_ip: host.ip,
+          encrypted_port: host.port
+      });
+
+      // Próbujemy deszyfrować każde pole osobno z obsługą błędów
+      let decryptedLogin, decryptedIp, decryptedPort;
+
+      try {
+          decryptedLogin = await cipher.decrypt(host.login);
+          console.log('Login decrypted successfully');
+      } catch (err: any) {
+          console.error('Failed to decrypt login:', err);
+          throw err;
+      }
+
+      try {
+          decryptedIp = await cipher.decrypt(host.ip);
+          console.log('IP decrypted successfully');
+      } catch (err: any) {
+          console.error('Failed to decrypt IP:', err);
+          throw err;
+      }
+
+      try {
+          decryptedPort = await cipher.decrypt(host.port);
+          console.log('Port decrypted successfully');
+      } catch (err: any) {
+          console.error('Failed to decrypt port:', err);
+          throw err;
+      }
+
+      // Jeśli wszystko się udało, zwracamy odszyfrowanego hosta
       return {
           ...host,
-          login: await cipher.decrypt(host.login),
-          ip: await cipher.decrypt(host.ip),
-          port: await cipher.decrypt(host.port)
+          login: decryptedLogin,
+          ip: decryptedIp,
+          port: decryptedPort
       };
-  } catch (error) {
-      console.error('Failed to decrypt host:', error);
-      throw new Error('Decryption failed');
+  } catch (error: unknown) {
+      if (error instanceof Error) {
+          console.error('Decryption error details:', {
+              error: error.name,
+              errorMessage: error.message,
+              errorStack: error.stack
+          });
+      } else {
+          console.error('Unknown decryption error:', error);
+      }
+      throw error;
   }
 };
 
