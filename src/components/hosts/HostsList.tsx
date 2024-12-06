@@ -2,13 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
 import { Host } from '@/types/host';
 import { CryptoSession } from '@/lib/crypto-session';
+import { Cipher } from '@/lib/crypto';  // Dodany import
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
+import { auth } from '@/lib/auth';
 
 interface HostsListProps {
   onEdit: (host: Host) => void;
   onDelete: (host: Host) => void;
   onAdd: () => void;
 }
+
+const decryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
+  try {
+      return {
+          ...host,
+          login: await cipher.decrypt(host.login),
+          ip: await cipher.decrypt(host.ip),
+          port: await cipher.decrypt(host.port)
+      };
+  } catch (error) {
+      console.error('Failed to decrypt host:', error);
+      throw new Error('Decryption failed');
+  }
+};
 
 const HostsList = ({ onEdit, onDelete, onAdd }: HostsListProps) => {
   const [hosts, setHosts] = useState<Host[]>([]);
@@ -30,39 +46,33 @@ const HostsList = ({ onEdit, onDelete, onAdd }: HostsListProps) => {
   const fetchHosts = async () => {
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
-      setShowCryptoPrompt(true);
-      setLoading(false);
-      return;
+        setShowCryptoPrompt(true);
+        setLoading(false);
+        return;
     }
 
     try {
-      const apiKey = localStorage.getItem('sshm_api_key');
-      const response = await fetch('/api/v1/sync', {
-        headers: {
-          'X-Api-Key': apiKey || '',
-        },
-      });
+        const response = await fetch('/api/v1/sync', {
+            headers: auth.getAuthHeaders(),
+        });
 
-      const data = await response.json();
-      if (data.status === 'success') {
-        // Deszyfrowanie danych hostów
-        const decryptedHosts = await Promise.all(
-          data.data.hosts.map(async (host: any) => ({
-            ...host,
-            password: host.password ? await cipher.decrypt(host.password) : null,
-            // Można dodać więcej pól do deszyfrowania jeśli są potrzebne
-          }))
-        );
-        setHosts(decryptedHosts);
-      } else {
-        setError(data.message);
-      }
+        const data = await response.json();
+        if (data.status === 'success') {
+            // Deszyfrowanie wszystkich hostów
+            const decryptedHosts = await Promise.all(
+                data.data.hosts.map(async (host: Host) => decryptHost(host, cipher))
+            );
+            setHosts(decryptedHosts);
+        } else {
+            setError(data.message);
+        }
     } catch (err) {
-      setError('Failed to load hosts');
+        console.error('Failed to load hosts:', err);
+        setError('Failed to load hosts');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   useEffect(() => {
     fetchHosts();
@@ -72,7 +82,7 @@ const HostsList = ({ onEdit, onDelete, onAdd }: HostsListProps) => {
     setShowCryptoPrompt(false);
     setLoading(true);
     await fetchHosts();
-};
+  };
 
   const handleEdit = async (host: Host) => {
     const cipher = CryptoSession.getCipher();
@@ -80,7 +90,7 @@ const HostsList = ({ onEdit, onDelete, onAdd }: HostsListProps) => {
       setShowCryptoPrompt(true);
       return;
     }
-    onEdit(host);
+    onEdit(host); // Przekazujemy już odszyfrowanego hosta
   };
 
   const handleDelete = async (host: Host) => {
