@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Host, Password } from '@/types/host';
 import { CryptoSession } from '@/lib/crypto-session';
+import { Cipher } from '@/lib/crypto';  // Ten import jest potrzebny!
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
-import { Cipher } from '@/lib/crypto';
+
+
+const cipher: Cipher | null = CryptoSession.getCipher();
 
 interface HostFormProps {
     host: Host | null;
