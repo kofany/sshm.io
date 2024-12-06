@@ -1,3 +1,4 @@
+// src/pages/dash/api-key.tsx
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { FiRefreshCw } from 'react-icons/fi';
@@ -7,7 +8,6 @@ import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
 
 const ApiKeyPage = () => {
   const [apiKey, setApiKey] = useState<string>('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -50,7 +50,7 @@ const ApiKeyPage = () => {
       } else {
         setError(data.message);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to generate new API key');
     } finally {
       setRegenerating(false);
@@ -60,14 +60,10 @@ const ApiKeyPage = () => {
   const handleCopyToClipboard = async (text: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        setError('Failed to copy to clipboard');
-        console.error('Copy error:', error.message);
-      }
+    } catch {
+      setError('Failed to copy to clipboard');
     }
   };
-  
 
   const handleCryptoKeyProvided = () => {
     setShowCryptoPrompt(false);
@@ -106,7 +102,7 @@ const ApiKeyPage = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => handleCopyToClipboard(apiKey)}  // Zawijamy w funkcję strzałkową
+                  onClick={() => handleCopyToClipboard(apiKey)}
                   className="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 >
                   Copy
@@ -133,12 +129,12 @@ const ApiKeyPage = () => {
             <p>Use this API key to authenticate your requests to the sshm.io API.</p>
             <p className="mt-2">Include it in your requests as an HTTP header:</p>
             <pre className="bg-gray-50 rounded p-3 mt-2 text-sm">
-              X-Api-Key: {'{your-api-key}'}
+              X-Api-Key: &ldquo;{'{your-api-key}'}&rdquo;
             </pre>
             <div className="mt-4 p-4 bg-yellow-50 rounded-md">
               <p className="text-sm text-yellow-700">
                 <strong>Note:</strong> Keep your API key secure and never share it with others. 
-                If your key is compromised, use the "Generate New Key" button to invalidate the old key.
+                If your key is compromised, use the &ldquo;Generate New Key&rdquo; button to invalidate the old key.
               </p>
             </div>
           </div>

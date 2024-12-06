@@ -49,7 +49,7 @@ const PasswordsPage = () => {
         );
         setPasswords(decryptedPasswords);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load passwords');
     } finally {
       setLoading(false);
@@ -96,7 +96,7 @@ const PasswordsPage = () => {
       } else {
         setError('Failed to add password');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to add password');
     }
   };
@@ -123,7 +123,7 @@ const PasswordsPage = () => {
       } else {
         setError('Failed to delete password');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to delete password');
     }
   };
@@ -138,11 +138,8 @@ const PasswordsPage = () => {
   const handleCopyToClipboard = async (text: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        setError('Failed to copy to clipboard');
-        console.error('Copy error:', error.message);
-      }
+    } catch {
+      setError('Failed to copy to clipboard');
     }
   };
 

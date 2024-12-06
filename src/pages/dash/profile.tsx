@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { FiUser, FiMail, FiLock, FiAlertCircle } from 'react-icons/fi';
+import { FiUser, FiLock, FiAlertCircle } from 'react-icons/fi';
 import { auth } from '@/lib/auth';
 import { CryptoSession } from '@/lib/crypto-session';
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
@@ -44,7 +44,7 @@ const ProfilePage = () => {
       } else {
         setError(data.message);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load user data');
     } finally {
       setLoading(false);
@@ -78,7 +78,7 @@ const ProfilePage = () => {
         } else {
           setError(data.message);
         }
-      } catch (err) {
+      } catch {
         setError('Failed to load user data');
       } finally {
         setLoading(false);
@@ -108,7 +108,7 @@ const ProfilePage = () => {
       } else {
         setError(data.message);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to update email');
     }
   };
@@ -142,7 +142,7 @@ const ProfilePage = () => {
       } else {
         setError(data.message);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to change password');
     }
   };
@@ -164,7 +164,7 @@ const ProfilePage = () => {
       } else {
         setError('Failed to delete account');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to delete account');
     }
   };

@@ -9,7 +9,7 @@ import { CryptoSession } from '@/lib/crypto-session';
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
 import { Cipher } from '@/lib/crypto';
 
-// Funkcje szyfrowania/deszyfrowania
+// Funkcje szyfrowania
 const encryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
   return {
     ...host,
@@ -19,21 +19,11 @@ const encryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
   };
 };
 
-const decryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
-  return {
-    ...host,
-    login: await cipher.decrypt(host.login),
-    ip: await cipher.decrypt(host.ip),
-    port: await cipher.decrypt(host.port)
-  };
-};
-
 const HostsPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentHost, setCurrentHost] = useState<Host | null>(null);
   const [passwords, setPasswords] = useState<Password[]>([]);
   const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -44,7 +34,6 @@ const HostsPage = () => {
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
       setShowCryptoPrompt(true);
-      setLoading(false);
       return;
     }
 
@@ -55,7 +44,6 @@ const HostsPage = () => {
 
       const data = await response.json();
       if (data.status === 'success') {
-        // Deszyfrowanie haseł
         const decryptedPasswords = await Promise.all(
           data.data.passwords.map(async (pwd: Password) => ({
             ...pwd,
@@ -64,10 +52,8 @@ const HostsPage = () => {
         );
         setPasswords(decryptedPasswords);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load passwords');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -93,14 +79,12 @@ const HostsPage = () => {
     }
 
     try {
-      // Pobierz aktualną listę hostów
       const response = await fetch('/api/v1/sync', {
         headers: auth.getAuthHeaders(),
       });
 
       const data = await response.json();
       if (data.status === 'success') {
-        // Usuń wybranego hosta i wyślij zaktualizowaną listę
         const updatedHosts = data.data.hosts.filter((h: Host) => h.id !== host.id);
         
         const syncResponse = await fetch('/api/v1/sync', {
@@ -119,7 +103,7 @@ const HostsPage = () => {
           setError('Failed to delete host');
         }
       }
-    } catch (err) {
+    } catch {
       setError('Failed to delete host');
     }
   };
@@ -132,10 +116,8 @@ const HostsPage = () => {
     }
 
     try {
-      // Szyfrujemy dane hosta
       const encryptedHostData = await encryptHost(hostData, cipher);
 
-      // Pobieramy aktualną listę hostów
       const response = await fetch('/api/v1/sync', {
         headers: auth.getAuthHeaders(),
       });
@@ -143,14 +125,12 @@ const HostsPage = () => {
       const data = await response.json();
       let hosts = data.status === 'success' ? data.data.hosts : [];
 
-      // Aktualizujemy lub dodajemy nowego hosta
       if (currentHost) {
         hosts = hosts.map((h: Host) => h.id === currentHost.id ? encryptedHostData : h);
       } else {
         hosts = [...hosts, encryptedHostData];
       }
 
-      // Synchronizujemy z serwerem
       const syncResponse = await fetch('/api/v1/sync', {
         method: 'POST',
         headers: auth.getAuthHeaders(),
@@ -166,8 +146,7 @@ const HostsPage = () => {
       } else {
         setError('Failed to save host');
       }
-    } catch (err) {
-      console.error('Error saving host:', err);
+    } catch {
       setError('Failed to save host');
     }
   };

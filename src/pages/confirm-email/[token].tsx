@@ -39,7 +39,7 @@ const ConfirmEmailPage = () => {
           setStatus('error');
           setErrorMessage(data.message || 'Confirmation failed');
         }
-      } catch (err) {
+      } catch {
         setStatus('error');
         setErrorMessage('An error occurred during email confirmation');
       }
