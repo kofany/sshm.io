@@ -44,7 +44,9 @@ const HostsList = ({ onEdit, onDelete, onAdd }: HostsListProps) => {
   }, []);
 
   const fetchHosts = async () => {
+    console.log('Fetching hosts...');
     const cipher = CryptoSession.getCipher();
+    console.log('Got cipher:', !!cipher);
     if (!cipher) {
         setShowCryptoPrompt(true);
         setLoading(false);
@@ -57,14 +59,20 @@ const HostsList = ({ onEdit, onDelete, onAdd }: HostsListProps) => {
         });
 
         const data = await response.json();
+        console.log('API response:', data);
         if (data.status === 'success') {
             // Deszyfrowanie wszystkich hostów
             const decryptedHosts = await Promise.all(
-                data.data.hosts.map(async (host: Host) => decryptHost(host, cipher))
+                data.data.hosts.map(async (host: Host) => {
+                    try {
+                        return await decryptHost(host, cipher);
+                    } catch (err) {
+                        console.error('Failed to decrypt host:', err, host);
+                        throw err;
+                    }
+                })
             );
             setHosts(decryptedHosts);
-        } else {
-            setError(data.message);
         }
     } catch (err) {
         console.error('Failed to load hosts:', err);

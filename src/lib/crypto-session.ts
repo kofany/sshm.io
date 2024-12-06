@@ -22,35 +22,37 @@ export class CryptoSession {
      */
     static initializeSession(encryptionKey: string): void {
         if (!isBrowser) return;
-
+    
         try {
-            // Tworzymy nowy cipher używając encryption key (salt)
+            console.log('Initializing crypto session...');
             this.cipher = new Cipher(encryptionKey);
             sessionStorage.setItem(this.STORAGE_KEY, encryptionKey);
             this.encryptionFailureCount = 0;
+            console.log('Crypto session initialized successfully');
         } catch (error) {
             console.error('Failed to initialize crypto session:', error);
             this.clearSession();
             throw new Error('Failed to initialize encryption');
         }
     }
-
-    /**
-     * Get current cipher instance or try to restore it from session storage
-     */
+    
     static getCipher(): Cipher | null {
         if (!isBrowser) return null;
-
+    
         if (!this.cipher) {
+            console.log('No active cipher, trying to restore from session storage...');
             const storedKey = sessionStorage.getItem(this.STORAGE_KEY);
             if (storedKey) {
                 try {
+                    console.log('Found stored key, recreating cipher...');
                     this.cipher = new Cipher(storedKey);
                 } catch (error) {
                     console.error('Failed to restore cipher:', error);
                     this.clearSession();
                     return null;
                 }
+            } else {
+                console.log('No stored key found');
             }
         }
         return this.cipher;
