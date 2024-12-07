@@ -3,7 +3,7 @@ import { FiCopy, FiEye, FiEyeOff } from 'react-icons/fi';
 import { Host, Password } from '@/types/host';
 import { CryptoSession } from '@/lib/crypto-session';
 import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
-import { Cipher } from '@/lib/crypto'; // Dodaj ten import
+import { Cipher } from '@/lib/crypto';
 
 interface HostCardProps {
   host: Host;
@@ -29,6 +29,7 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
 
   const decryptHost = useCallback(async (cipher: Cipher) => {
     try {
+      console.log(`Decrypting host: ${host.name}`);
       return {
         ...host,
         login: await cipher.decrypt(host.login),
@@ -40,7 +41,7 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
       throw err;
     }
   }, [host]);
-  
+
   useEffect(() => {
     const decryptHostData = async () => {
       const cipher = CryptoSession.getCipher();
@@ -48,9 +49,8 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
         setShowCryptoPrompt(true);
         return;
       }
-  
+
       try {
-        console.log('Decrypting host data for:', host.name);
         const decrypted = await decryptHost(cipher);
         console.log('Decrypted host data:', decrypted);
         setDecryptedHost(decrypted);
@@ -60,9 +60,9 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
         setError('Failed to decrypt host data');
       }
     };
-  
+
     decryptHostData();
-  }, [decryptHost]); // zależność zmieniona na decryptHost
+  }, [decryptHost, host.name]); // Dodano host.name jako zależność
 
   const handleTogglePassword = async () => {
     if (showPassword) {
@@ -70,13 +70,13 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
       setDecryptedPassword(null);
       return;
     }
-  
+
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
       setShowCryptoPrompt(true);
       return;
     }
-  
+
     try {
       if (password?.password) {
         console.log('Decrypting password');
