@@ -13,26 +13,38 @@ interface HostsListProps {
 }
 
 const decryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
+  console.log('Decrypting host:', {
+      id: host.id,
+      name: host.name,
+      encryptedLogin: host.login,
+      encryptedIp: host.ip,
+      encryptedPort: host.port
+  });
+
   try {
-      // Teraz używamy hex encoding zamiast base64
       const decryptedLogin = await cipher.decrypt(host.login);
+      console.log('Decrypted login:', decryptedLogin);
+
       const decryptedIP = await cipher.decrypt(host.ip);
+      console.log('Decrypted IP:', decryptedIP);
+
       const decryptedPort = await cipher.decrypt(host.port);
+      console.log('Decrypted port:', decryptedPort);
 
-      console.log('Decrypted values:', {
-          login: decryptedLogin,
-          ip: decryptedIP,
-          port: decryptedPort
-      });
-
-      return {
+      const decrypted = {
           ...host,
           login: decryptedLogin,
           ip: decryptedIP,
           port: decryptedPort
       };
+
+      if (!decryptedLogin || !decryptedIP || !decryptedPort) {
+          console.error('Empty decrypted values detected');
+      }
+
+      return decrypted;
   } catch (err) {
-      console.error('Decryption error:', err);
+      console.error('Host decryption failed:', err);
       throw err;
   }
 };

@@ -10,6 +10,7 @@ interface HostFormProps {
     onCancel: () => void;
 }
 
+
 const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onCancel }) => {
     const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
     const [formData, setFormData] = useState<Partial<Host>>({
@@ -53,18 +54,32 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-    
-        const cipher = CryptoSession.getCipher();
-        if (!cipher) {
-            setShowCryptoPrompt(true);
-            return;
-        }
-    
+        
         try {
-            // Szyfrowanie z użyciem hex encoding
-            const encryptedLogin = await cipher.encrypt(formData.login || '');
-            const encryptedIp = await cipher.encrypt(formData.ip || '');
-            const encryptedPort = await cipher.encrypt(formData.port || '22');
+            const cipher = CryptoSession.getCipher();
+            if (!cipher) {
+                setShowCryptoPrompt(true);
+                return;
+            }
+    
+            // Walidacja danych
+            if (!formData.login || !formData.ip || !formData.name) {
+                console.error('Missing required fields');
+                return;
+            }
+    
+            console.log('Encrypting form data:', {
+                login: formData.login,
+                ip: formData.ip,
+                port: formData.port || '22'
+            });
+    
+            // Szyfrowanie danych
+            const [encryptedLogin, encryptedIp, encryptedPort] = await Promise.all([
+                cipher.encrypt(formData.login),
+                cipher.encrypt(formData.ip),
+                cipher.encrypt(formData.port || '22')
+            ]);
     
             console.log('Encrypted values:', {
                 login: encryptedLogin,
@@ -77,16 +92,32 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
                 user_id: host?.user_id || 0,
                 created_at: host?.created_at || new Date().toISOString(),
                 password_id: Number(formData.password_id) || 0,
-                name: formData.name || '',
-                description: formData.description || null,
+                name: formData.name.trim(),
+                description: formData.description?.trim() || null,
                 login: encryptedLogin,
                 ip: encryptedIp,
-                port: encryptedPort,
+                port: encryptedPort
             };
     
             await onSubmit(hostData);
+    
+            // Reset form po udanym zapisie
+            setFormData({
+                name: '',
+                description: '',
+                login: '',
+                password_id: 0,
+                ip: '',
+                port: '22'
+            });
+    
+            if (onCancel) {
+                onCancel();
+            }
+    
         } catch (error) {
             console.error('Failed to prepare host data:', error);
+            // Tu możemy dodać jakieś powiadomienie dla użytkownika o błędzie
         }
     };
 
