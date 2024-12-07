@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FiCopy, FiEye, FiEyeOff } from 'react-icons/fi';
 import { Host, Password } from '@/types/host';
 import { CryptoSession } from '@/lib/crypto-session';
@@ -27,7 +27,7 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
   const [decryptedHost, setDecryptedHost] = useState<DecryptedHost | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const decryptHost = async (cipher: Cipher) => {
+  const decryptHost = useCallback(async (cipher: Cipher) => {
     try {
       return {
         ...host,
@@ -39,8 +39,8 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
       console.error('Decryption error:', err);
       throw err;
     }
-  };
-
+  }, [host]);
+  
   useEffect(() => {
     const decryptHostData = async () => {
       const cipher = CryptoSession.getCipher();
@@ -48,7 +48,7 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
         setShowCryptoPrompt(true);
         return;
       }
-
+  
       try {
         console.log('Decrypting host data for:', host.name);
         const decrypted = await decryptHost(cipher);
@@ -60,9 +60,9 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
         setError('Failed to decrypt host data');
       }
     };
-
+  
     decryptHostData();
-  }, [host]);
+  }, [decryptHost]); // zależność zmieniona na decryptHost
 
   const handleTogglePassword = async () => {
     if (showPassword) {
