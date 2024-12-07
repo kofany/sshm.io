@@ -35,16 +35,24 @@ const HostsPage = () => {
 
       const data = await response.json();
       if (data.status === 'success') {
-        // Deszyfrowanie haseł
+        console.log('Decrypting passwords');
         const decryptedPasswords = await Promise.all(
-          data.data.passwords.map(async (pwd: Password) => ({
-            ...pwd,
-            password: await cipher.decrypt(pwd.password)
-          }))
+          data.data.passwords.map(async (pwd: Password) => {
+            try {
+              return {
+                ...pwd,
+                password: await cipher.decrypt(pwd.password)
+              };
+            } catch (error) {
+              console.error('Failed to decrypt password:', error);
+              return pwd;
+            }
+          })
         );
         setPasswords(decryptedPasswords);
       }
     } catch (err) {
+      console.error('Failed to fetch passwords:', err);
       setError('Failed to load passwords');
     } finally {
       setLoading(false);
@@ -62,36 +70,48 @@ const HostsPage = () => {
   };
 
   const handleDelete = async (host: Host) => {
-    const cipher = CryptoSession.getCipher();
-    if (!cipher) {
-      setShowCryptoPrompt(true);
-      return;
-    }
-
     if (!window.confirm('Are you sure you want to delete this host?')) {
       return;
     }
 
     try {
+      // Pobierz aktualną listę hostów
       const response = await fetch('/api/v1/sync', {
+        headers: auth.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+      if (data.status !== 'success') {
+        throw new Error('Failed to fetch current hosts list');
+      }
+
+      // Usuń hosta z listy
+      const updatedHosts = data.data.hosts.filter((h: Host) => h.id !== host.id);
+
+      // Wyślij zaktualizowaną listę
+      const syncResponse = await fetch('/api/v1/sync', {
         method: 'POST',
         headers: auth.getAuthHeaders(),
         body: JSON.stringify({
           data: {
-            hosts: [] // Wysyłamy pustą listę aby usunąć hosta
+            hosts: updatedHosts,
+            passwords: data.data.passwords,
+            keys: data.data.keys
           }
         })
       });
 
-      if (response.ok) {
-        window.location.reload(); // Odświeżamy stronę aby pobrać aktualną listę
+      if (syncResponse.ok) {
+        window.location.reload();
       } else {
         setError('Failed to delete host');
       }
     } catch (err) {
+      console.error('Delete host error:', err);
       setError('Failed to delete host');
     }
   };
+
 
   const handleSubmit = async (hostData: Host) => {
     const cipher = CryptoSession.getCipher();
@@ -101,38 +121,50 @@ const HostsPage = () => {
     }
 
     try {
-      // Pobieramy aktualną listę hostów
+      console.log('Submitting host data:', hostData);
+      
+      // Pobierz aktualną listę hostów
       const response = await fetch('/api/v1/sync', {
         headers: auth.getAuthHeaders(),
       });
 
       const data = await response.json();
-      let hosts = data.status === 'success' ? data.data.hosts : [];
+      if (data.status !== 'success') {
+        throw new Error('Failed to fetch current data');
+      }
 
-      // Aktualizujemy lub dodajemy nowego hosta
+      let hosts = data.data.hosts;
+
+      // Aktualizuj lub dodaj hosta
       if (currentHost) {
         hosts = hosts.map((h: Host) => h.id === currentHost.id ? hostData : h);
       } else {
         hosts = [...hosts, hostData];
       }
 
-      // Synchronizujemy z serwerem
+      // Synchronizuj z serwerem zachowując pozostałe dane
       const syncResponse = await fetch('/api/v1/sync', {
         method: 'POST',
         headers: auth.getAuthHeaders(),
         body: JSON.stringify({
-          data: { hosts }
+          data: {
+            hosts,
+            passwords: data.data.passwords,
+            keys: data.data.keys
+          }
         })
       });
 
       if (syncResponse.ok) {
+        console.log('Host saved successfully');
         setIsEditing(false);
         setCurrentHost(null);
         window.location.reload();
       } else {
-        setError('Failed to save host');
+        throw new Error('Failed to sync data');
       }
     } catch (err) {
+      console.error('Save host error:', err);
       setError('Failed to save host');
     }
   };
