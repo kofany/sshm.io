@@ -26,48 +26,42 @@ const ProfilePage = () => {
 
   const fetchUserData = async () => {
     const apiKey = auth.getApiKey();
+    const cipher = CryptoSession.getCipher();
+    
     if (!apiKey) {
-        router.push('/login');
-        return;
+      router.push('/login');
+      return;
     }
     
-    const cipher = CryptoSession.getCipher();
     if (!cipher) {
-        setShowCryptoPrompt(true);
-        setLoading(false);
-        return;
+      setShowCryptoPrompt(true);
+      setLoading(false);
+      return;
     }
-
+  
     try {
-        const response = await fetch('/api/v1/user/info', {
-            headers: {
-                ...auth.getAuthHeaders(),
-                'X-Api-Key': apiKey
-            }
-        });
-
-        if (!response.ok) {
-            if (response.status === 401) {
-                router.push('/login');
-                return;
-            }
-            throw new Error('Network response was not ok');
+      const response = await fetch('/api/v1/user/info', {
+        headers: {
+          ...auth.getAuthHeaders(),
+          'X-Api-Key': apiKey
         }
-
-        const data = await response.json();
-        if (data.status === 'success') {
-            setUserData(data.data);
-            setError('');
-        } else {
-            setError(data.message || 'Failed to load user data');
-        }
+      });
+  
+      const data = await response.json();
+      if (data.status === 'success') {
+        setUserData(data.data);
+        setError('');
+      } else if (response.status === 401) {
+        router.push('/login');
+      } else {
+        setError('');  // Nie wyświetlamy "Unauthorized"
+      }
     } catch (err) {
-        setError('Failed to load user data');
-        console.error('Error fetching user data:', err);
-    } finally {
-        setLoading(false);
+      console.error('Error:', err);
+      setError('Failed to load user data');
     }
-};
+    setLoading(false);
+  };
 
   useEffect(() => {
     fetchUserData();
