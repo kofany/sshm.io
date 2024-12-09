@@ -1,27 +1,20 @@
-<?php
 // /api/v1/endpoints/user-delete.php
-
+<?php
 if (!defined('API_ACCESS')) {
     header('HTTP/1.0 403 Forbidden');
     exit;
 }
 
-// Sprawdzamy czy to metoda DELETE
 if ($method !== 'DELETE') {
     sendResponse('error', 'Method not allowed');
 }
 
-// Uniwersalna autoryzacja
 try {
+    // Uniwersalna autoryzacja
     $userId = validateAuth($pdo);
-} catch (Exception $e) {
-    logEvent('user-delete', 'Authorization failed', ['error' => $e->getMessage()]);
-    sendResponse('error', 'Unauthorized');
-}
-
-try {
-    // Pobieramy dane użytkownika przed usunięciem (do logów)
-    $stmt = $pdo->prepare('SELECT email FROM sshm_users WHERE id = ?');
+    
+    // Pobieramy dane użytkownika przed usunięciem
+    $stmt = $pdo->prepare('SELECT email FROM sshm_users WHERE id = ? AND is_active = 1');
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
 
@@ -59,6 +52,13 @@ try {
         'email' => $user['email']
     ]);
 
+    // Jeśli to panel webowy, kończymy sesję
+    if (isWebPanel()) {
+        session_start();
+        session_unset();
+        session_destroy();
+    }
+
     sendResponse('success', 'Account deleted successfully');
 
 } catch (Exception $e) {
@@ -69,8 +69,11 @@ try {
 
     logEvent('error', 'Failed to delete account', [
         'error' => $e->getMessage(),
-        'user_id' => $userId
+        'user_id' => $userId ?? null
     ]);
 
-    sendResponse('error', 'Failed to delete account: ' . $e->getMessage());
+    if (API_DEBUG) {
+        sendResponse('error', $e->getMessage());
+    }
+    sendResponse('error', 'Failed to delete account');
 }

@@ -1,3 +1,4 @@
+// /api/v1/endpoints/user-info.php
 <?php
 if (!defined('API_ACCESS')) {
     header('HTTP/1.0 403 Forbidden');
@@ -16,7 +17,7 @@ try {
         sendResponse('error', 'Account is not active');
     }
 
-    // Pobierz szczegółowe informacje o użytkowniku
+    // Zmodyfikowane zapytanie zgodne z nową strukturą bazy
     $stmt = $pdo->prepare('
         SELECT 
             u.email, 
@@ -27,7 +28,7 @@ try {
             (SELECT COUNT(*) FROM sshm_passwords WHERE user_id = u.id) as passwords_count,
             (SELECT last_sync FROM sshm_sync_status WHERE user_id = u.id) as last_sync
         FROM sshm_users u
-        WHERE u.id = ?
+        WHERE u.id = ? AND u.is_active = 1
     ');
     
     $stmt->execute([$userId]);
@@ -38,15 +39,10 @@ try {
         sendResponse('error', 'User not found');
     }
 
-    // Konwertuj liczniki na typ integer
+    // Konwersja liczników na integer
     $userData['hosts_count'] = (int)$userData['hosts_count'];
     $userData['keys_count'] = (int)$userData['keys_count'];
     $userData['passwords_count'] = (int)$userData['passwords_count'];
-
-    // Usuń api_key z odpowiedzi jeśli to nie jest panel webowy
-    if (!isWebPanel()) {
-        unset($userData['api_key']);
-    }
 
     logEvent('user-info', 'User info retrieved successfully', [
         'user_id' => $userId,
