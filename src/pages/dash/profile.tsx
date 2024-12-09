@@ -24,48 +24,57 @@ const ProfilePage = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
 
-    const fetchUserData = useCallback(async () => {
+  const fetchUserData = useCallback(async () => {
+    try {
       const apiKey = auth.getApiKey();
-      const cipher = CryptoSession.getCipher();
       
       if (!apiKey) {
         router.push('/login');
         return;
       }
-      
+
+      // Sprawdź czy mamy aktywną sesję szyfrowania
+      const cipher = CryptoSession.getCipher();
       if (!cipher) {
         setShowCryptoPrompt(true);
         setLoading(false);
         return;
       }
-    
-      try {
-        const response = await fetch('/api/v1/user/info', {
-          headers: {
-            ...auth.getAuthHeaders(),
-            'X-Api-Key': apiKey
-          }
-        });
-    
-        const data = await response.json();
-        if (data.status === 'success') {
-          setUserData(data.data);
-          setError('');
-        } else if (response.status === 401) {
-          router.push('/login');
-        } else {
-          setError('');
+
+      const response = await fetch('/api/v1/user/info', {
+        headers: {
+          ...auth.getAuthHeaders(),
+          'Content-Type': 'application/json',
         }
-      } catch (err) {
-        console.error('Error:', err);
-        setError('Failed to load user data');
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          auth.logout();
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch user data');
       }
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        setUserData(data.data);
+        setError('');
+      } else {
+        throw new Error(data.message || 'Failed to fetch user data');
+      }
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError('Failed to load user data');
+    } finally {
       setLoading(false);
-  }, [router]); // router jako zależność
+    }
+  }, [router]);
 
   useEffect(() => {
-      fetchUserData();
-  }, [fetchUserData]); // fetchUserData jako zależność
+    fetchUserData();
+  }, [fetchUserData]);
 
   const handleUpdateEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
