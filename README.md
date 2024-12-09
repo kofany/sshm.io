@@ -4,6 +4,8 @@
 
 A free, open-source SSH management solution with encrypted synchronization between CLI and web interface.
 
+Desktop client: [sshManager](https://github.com/kofany/sshManager)
+
 ## Project Structure
 ```plaintext
 sshm.io/
