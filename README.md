@@ -83,6 +83,8 @@ CREATE TABLE `sshm_users` (
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `confirm_token` varchar(64) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 0,
+  `reset_token` varchar(64) DEFAULT NULL,
+  `reset_token_expires` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   UNIQUE KEY `api_key` (`api_key`)
