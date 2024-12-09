@@ -153,12 +153,18 @@ const ProfilePage = () => {
         method: 'DELETE',
         headers: {
           ...auth.getAuthHeaders(),
-          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest', // Dodajemy ten nagłówek
+          'Content-Type': 'application/json'
         }
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to delete account');
+      }
 
+      const data = await response.json();
+      
       if (data.status === 'success') {
         auth.logout();
         CryptoSession.clearSession();
@@ -168,9 +174,9 @@ const ProfilePage = () => {
       }
     } catch (err) {
       console.error('Delete account error:', err);
-      setError('Failed to delete account');
+      setError(err instanceof Error ? err.message : 'Failed to delete account');
     }
-  };
+};
 
   const handleCryptoKeyProvided = () => {
     setShowCryptoPrompt(false);

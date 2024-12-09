@@ -3,10 +3,16 @@ import { CryptoSession } from './crypto-session';
 
 export const AUTH_KEY = 'sshm_api_key';
 
-type AuthHeaders = Record<string, string>;
+type AuthHeaders = HeadersInit & {
+  'Content-Type': string;
+  'X-Api-Key': string;
+  'X-Requested-With': string;
+};
 
 export const auth = {
-  // Sprawdza czy użytkownik jest zalogowany i czy sesja jest aktywna
+  /**
+   * Checks if user is authenticated and session is active
+   */
   async isAuthenticated(): Promise<boolean> {
     const apiKey = this.getApiKey();
     if (!apiKey) return false;
@@ -27,19 +33,25 @@ export const auth = {
     }
   },
 
-  // Pobiera API key
+  /**
+   * Gets API key from local storage
+   */
   getApiKey(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(AUTH_KEY);
   },
 
-  // Ustawia API key (używane przy logowaniu)
+  /**
+   * Sets API key (used during login)
+   */
   login(apiKey: string): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(AUTH_KEY, apiKey);
   },
 
-  // Usuwa API key i klucz szyfrujący (wylogowanie)
+  /**
+   * Removes API key and encryption key (logout)
+   */
   async logout(): Promise<void> {
     if (typeof window === 'undefined') return;
 
@@ -60,13 +72,69 @@ export const auth = {
     }
   },
 
-  // Zwraca standardowe nagłówki z API key
+  /**
+   * Returns standard headers with API key for requests
+   */
   getAuthHeaders(): HeadersInit {
     const apiKey = this.getApiKey();
     
+    if (!apiKey) {
+      throw new Error('No API key available');
+    }
+    
     return {
       'Content-Type': 'application/json',
-      'X-Api-Key': apiKey || '',
-    };
+      'X-Api-Key': apiKey,
+      'X-Requested-With': 'XMLHttpRequest'
+    } as AuthHeaders;
+  },
+
+  /**
+   * Checks if there is an active session
+   */
+  hasActiveSession(): boolean {
+    return this.getApiKey() !== null && CryptoSession.hasActiveSession();
+  },
+
+  /**
+   * Validates current session with the server
+   */
+  async validateSession(): Promise<boolean> {
+    if (!this.hasActiveSession()) {
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/v1/check-session', {
+        headers: this.getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        this.logout();
+        return false;
+      }
+
+      const data = await response.json();
+      return data.status === 'success';
+    } catch (error) {
+      console.error('Session validation error:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Refreshes current session
+   */
+  async refreshSession(): Promise<boolean> {
+    if (!this.hasActiveSession()) {
+      return false;
+    }
+
+    try {
+      await this.validateSession();
+      return true;
+    } catch {
+      return false;
+    }
   }
 };

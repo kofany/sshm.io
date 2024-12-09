@@ -7,14 +7,28 @@ if (!defined('API_ACCESS')) {
 }
 
 /**
- * Sprawdza czy request pochodzi z panelu webowego
+ * Checks if the request is coming from the web panel
+ * 
+ * @return bool Returns true if request is from web panel, false otherwise
  */
 function isWebPanel() {
-    $headers = getallheaders();
-    return isset($headers['X-Requested-With']) && 
-           $headers['X-Requested-With'] === 'XMLHttpRequest' && 
-           (!empty($_SERVER['HTTP_REFERER']) && 
-           parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST) === 'sshm.io');
+    // Get all headers in a case-insensitive way
+    $headers = array_change_key_case(getallheaders(), CASE_LOWER);
+    
+    // Check for XMLHttpRequest header
+    if (!isset($headers['x-requested-with']) || 
+        strtolower($headers['x-requested-with']) !== 'xmlhttprequest') {
+        return false;
+    }
+    
+    // Check for API key header
+    if (!isset($headers['x-api-key'])) {
+        return false;
+    }
+    
+    // Production environment - only allow sshm.io
+    return isset($_SERVER['HTTP_REFERER']) && 
+           parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST) === 'sshm.io';
 }
 
 /**
