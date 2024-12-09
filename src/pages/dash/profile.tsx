@@ -132,18 +132,33 @@ const ProfilePage = () => {
     }
 
     try {
+      const apiKey = auth.getApiKey();
+      const cipher = CryptoSession.getCipher();
+      
+      if (!apiKey || !cipher) {
+        setError('Authentication required');
+        return;
+      }
+
       const response = await fetch('/api/v1/user/delete', {
         method: 'DELETE',
-        headers: auth.getAuthHeaders(),
+        headers: {
+          ...auth.getAuthHeaders(),
+          'Content-Type': 'application/json',
+        }
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (data.status === 'success') {
         auth.logout();
+        CryptoSession.clearSession();
         router.push('/login');
       } else {
-        setError('Failed to delete account');
+        setError(data.message || 'Failed to delete account');
       }
     } catch (err) {
+      console.error('Delete account error:', err);
       setError('Failed to delete account');
     }
   };
