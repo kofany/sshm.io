@@ -38,3 +38,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# API files
+/api/v1/config.php
+/api/v1/logs/*
+!/api/v1/logs/.gitkeep

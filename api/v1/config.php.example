@@ -1,0 +1,52 @@
+<?php
+// /api/v1/config.php example
+
+// Prevent direct file access
+if (!defined('API_ACCESS')) {
+   header('HTTP/1.0 403 Forbidden');
+   exit;
+}
+
+// Database configuration 
+define('DB_HOST', ''); 
+define('DB_NAME', '');
+define('DB_USER', '');
+define('DB_PASS', '');
+define('DB_CHARSET', 'utf8mb4');
+ 
+// API configuration
+define('API_VERSION', '1.0');
+define('API_DEBUG', true);
+
+// Brevo email service configuration  
+define('BREVO_API_KEY', 'your-api-key');
+define('MAIL_FROM', 'your-email-from');
+define('MAIL_FROM_NAME', 'your-from-name');
+
+// Web panel configuration
+if (isWebPanel()) {
+   define('SESSION_TIMEOUT', 1800); // 30 minutes
+   define('SESSION_NAME', 'SSHM_SESSION'); 
+   define('SITE_URL', 'your_panel_address');
+}
+
+// Initialize database connection
+try {
+   $pdo = new PDO(
+       "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET,
+       DB_USER,
+       DB_PASS,
+       [
+           PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+           PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+           PDO::ATTR_EMULATE_PREPARES => false,
+           PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+       ]
+   );
+} catch (PDOException $e) {
+   if (API_DEBUG) {
+       die(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+   } else {
+       die(json_encode(['status' => 'error', 'message' => 'Database connection error']));
+   }
+}
