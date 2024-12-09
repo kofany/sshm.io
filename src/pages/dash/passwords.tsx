@@ -112,14 +112,13 @@ const PasswordsPage = () => {
         created_at: new Date().toISOString()
       };
 
-      // Wyślij zaktualizowane dane
       const response = await fetch('/api/v1/sync', {
         method: 'POST',
         headers: auth.getAuthHeaders(),
         body: JSON.stringify({
           data: {
             ...currentData,
-            passwords: [...currentData.passwords, passwordData]
+            passwords: [...currentData.passwords, passwordData] 
           }
         })
       });
@@ -127,15 +126,16 @@ const PasswordsPage = () => {
       if (response.ok) {
         setIsAddingPassword(false);
         setNewPassword({ description: '', password: '' });
-        await fetchPasswords();
+        await fetchPasswords(); 
       } else {
-        throw new Error('Failed to sync data');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to sync data');
       }
     } catch (err) {
       console.error('Add password error:', err);
-      setError('Failed to add password');
+      setError(err instanceof Error ? err.message : 'Failed to add password');
     }
-  };
+};
 
   const handleDeletePassword = async (passwordId: number) => {
     if (!window.confirm('Are you sure you want to delete this password?')) {
