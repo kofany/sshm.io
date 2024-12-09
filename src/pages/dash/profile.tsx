@@ -3,199 +3,170 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { FiUser, FiMail, FiLock, FiAlertCircle } from 'react-icons/fi';
-import { auth } from '@/lib/auth';
-import { CryptoSession } from '@/lib/crypto-session';
-import CryptoKeyPrompt from '@/components/CryptoKeyPrompt';
 
 interface UserData {
-  email: string;
-  created_at: string;
-  hosts_count: number;
-  keys_count: number;
-  passwords_count: number;
+ email: string;
+ created_at: string;
+ hosts_count: number;
+ keys_count: number;
+ passwords_count: number;
 }
 
 const ProfilePage = () => {
-  const router = useRouter();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
+ const router = useRouter();
+ const [userData, setUserData] = useState<UserData | null>(null);
+ const [loading, setLoading] = useState(true);
+ const [error, setError] = useState('');
+ const [isEditing, setIsEditing] = useState(false);
+ const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  const fetchUserData = useCallback(async () => {
-    const apiKey = auth.getApiKey();
-    const cipher = CryptoSession.getCipher();
-    
-    if (!apiKey) {
-      router.push('/login');
-      return;
-    }
-    
-    if (!cipher) {
-      setShowCryptoPrompt(true);
-      setLoading(false);
-      return;
-    }
-  
-    try {
-      const response = await fetch('/api/v1/user/info', {
-        headers: auth.getAuthHeaders()
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
-  
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        setUserData(data.data);
-        setError('');
-      } else {
-        throw new Error(data.message || 'Failed to fetch user data');
-      }
-    } catch (err) {
-      console.error('Error fetching user data:', err);
-      if (err instanceof Error && err.message.includes('Unauthorized')) {
-        auth.logout();
-        router.push('/login');
-        return;
-      }
-      setError('Failed to load user data');
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+ const fetchUserData = useCallback(async () => {
+   try {
+     const response = await fetch('/api/v1/user/info', {
+       headers: {
+         'Content-Type': 'application/json',
+         'X-Requested-With': 'XMLHttpRequest'
+       },
+       credentials: 'include'
+     });
 
-  useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+     if (!response.ok) {
+       if (response.status === 401) {
+         router.push('/login');
+         return;
+       }
+       throw new Error('Failed to fetch user data');
+     }
 
-  const handleUpdateEmail = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const newEmail = formData.get('email') as string;
+     const data = await response.json();
+     if (data.status === 'success') {
+       setUserData(data.data);
+       setError('');
+     } else {
+       throw new Error(data.message || 'Failed to fetch user data');
+     }
+   } catch (err) {
+     console.error('Error fetching user data:', err);
+     setError('Failed to load user data');
+   } finally {
+     setLoading(false);
+   }
+ }, [router]);
 
-    try {
-      const response = await fetch('/api/v1/user/update', {
-        method: 'POST',
-        headers: auth.getAuthHeaders(),
-        body: JSON.stringify({ email: newEmail }),
-      });
+ useEffect(() => {
+   fetchUserData();
+ }, [fetchUserData]);
 
-      const data = await response.json();
-      if (data.status === 'success') {
-        setUserData(prev => prev ? { ...prev, email: newEmail } : null);
-        setIsEditing(false);
-        setError('');
-      } else {
-        setError(data.message);
-      }
-    } catch (err) {
-      setError('Failed to update email');
-    }
-  };
+ const handleUpdateEmail = async (e: React.FormEvent<HTMLFormElement>) => {
+   e.preventDefault();
+   const formData = new FormData(e.currentTarget);
+   const newEmail = formData.get('email') as string;
 
-  const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const currentPassword = formData.get('currentPassword') as string;
-    const newPassword = formData.get('newPassword') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
+   try {
+     const response = await fetch('/api/v1/user/update', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'X-Requested-With': 'XMLHttpRequest'
+       },
+       credentials: 'include',
+       body: JSON.stringify({ email: newEmail }),
+     });
 
-    if (newPassword !== confirmPassword) {
-      setError('New passwords do not match');
-      return;
-    }
+     const data = await response.json();
+     if (data.status === 'success') {
+       setUserData(prev => prev ? { ...prev, email: newEmail } : null);
+       setIsEditing(false);
+       setError('');
+     } else {
+       setError(data.message);
+     }
+   } catch (err) {
+     setError('Failed to update email');
+   }
+ };
 
-    try {
-      const response = await fetch('/api/v1/user/update', {
-        method: 'POST',
-        headers: auth.getAuthHeaders(),
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-        }),
-      });
+ const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
+   e.preventDefault();
+   const formData = new FormData(e.currentTarget);
+   const currentPassword = formData.get('currentPassword') as string;
+   const newPassword = formData.get('newPassword') as string;
+   const confirmPassword = formData.get('confirmPassword') as string;
 
-      const data = await response.json();
-      if (data.status === 'success') {
-        setIsChangingPassword(false);
-        setError('');
-      } else {
-        setError(data.message);
-      }
-    } catch (err) {
-      setError('Failed to change password');
-    }
-  };
+   if (newPassword !== confirmPassword) {
+     setError('New passwords do not match');
+     return;
+   }
 
-  const handleDeleteAccount = async () => {
-    if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-      return;
-    }
+   try {
+     const response = await fetch('/api/v1/user/update', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'X-Requested-With': 'XMLHttpRequest'
+       },
+       credentials: 'include',
+       body: JSON.stringify({
+         current_password: currentPassword,
+         new_password: newPassword,
+       }),
+     });
 
-    try {
-      const apiKey = auth.getApiKey();
-      const cipher = CryptoSession.getCipher();
-      
-      if (!apiKey || !cipher) {
-        setError('Authentication required');
-        return;
-      }
+     const data = await response.json();
+     if (data.status === 'success') {
+       setIsChangingPassword(false);
+       setError('');
+     } else {
+       setError(data.message);
+     }
+   } catch (err) {
+     setError('Failed to change password');
+   }
+ };
 
-      const response = await fetch('/api/v1/user/delete', {
-        method: 'DELETE',
-        headers: auth.getAuthHeaders()
-      });
+ const handleDeleteAccount = async () => {
+   if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+     return;
+   }
 
-      // Tylko raz odczytujemy response.json()
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        auth.logout();
-        CryptoSession.clearSession();
-        router.push('/login');
-        return;
-      }
-      
-      // Jeśli nie success, rzucamy błąd z komunikatem
-      throw new Error(data.message || 'Failed to delete account');
+   try {
+     const response = await fetch('/api/v1/user/delete', {
+       method: 'DELETE',
+       headers: {
+         'Content-Type': 'application/json',
+         'X-Requested-With': 'XMLHttpRequest'
+       },
+       credentials: 'include'
+     });
 
-    } catch (err) {
-      console.error('Delete account error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete account');
-    }
-};
+     const data = await response.json();
+     
+     if (data.status === 'success') {
+       localStorage.removeItem('sshm_api_key'); // Czyścimy localStorage
+       router.push('/login');
+       return;
+     }
+     
+     throw new Error(data.message || 'Failed to delete account');
+   } catch (err) {
+     console.error('Delete account error:', err);
+     setError(err instanceof Error ? err.message : 'Failed to delete account');
+   }
+ };
 
-  const handleCryptoKeyProvided = () => {
-    setShowCryptoPrompt(false);
-    fetchUserData();
-  };
+ if (loading) {
+   return (
+     <DashboardLayout>
+       <div className="flex justify-center items-center h-64">
+         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+       </div>
+     </DashboardLayout>
+   );
+ }
 
-  if (showCryptoPrompt) {
-    return (
-      <DashboardLayout>
-        <CryptoKeyPrompt onKeyProvided={handleCryptoKeyProvided} />
-      </DashboardLayout>
-    );
-  }
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  return (
-    <DashboardLayout>
-      <div className="space-y-6">
+ return (
+   <DashboardLayout>
+     <div className="space-y-6">
         <h1 className="text-2xl font-semibold text-gray-900">Profile Settings</h1>
 
         {error && (
