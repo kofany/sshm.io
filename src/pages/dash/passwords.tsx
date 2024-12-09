@@ -14,6 +14,12 @@ interface Password {
   created_at: string;
 }
 
+interface SyncData {
+  passwords: Password[];
+  hosts: any[];
+  keys: any[];
+}
+
 const PasswordsPage = () => {
   const [passwords, setPasswords] = useState<Password[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,37 +32,56 @@ const PasswordsPage = () => {
     password: ''
   });
 
+  // Pobiera aktualne surowe dane z API
+  const fetchCurrentData = async (): Promise<SyncData | null> => {
+    const response = await fetch('/api/v1/sync', {
+      headers: auth.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch current data');
+    }
+
+    const data = await response.json();
+    return data.status === 'success' ? data.data : null;
+  };
+
+  // Pobiera i deszyfruje hasła do wyświetlenia
   const fetchPasswords = async () => {
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
-        setShowCryptoPrompt(true);
-        setLoading(false);
-        return;
+      setShowCryptoPrompt(true);
+      setLoading(false);
+      return;
     }
 
     try {
-        const response = await fetch('/api/v1/sync', {
-            headers: auth.getAuthHeaders(),
-        });
+      const data = await fetchCurrentData();
+      if (!data) {
+        throw new Error('No data received');
+      }
 
-        const data = await response.json();
-        if (data.status === 'success') {
-            const decryptedPasswords = await Promise.all(
-                data.data.passwords.map(async (pwd: Password) => ({
-                    ...pwd,
-                    password: await cipher.decrypt(pwd.password)
-                }))
-            );
-            console.log('Decrypted passwords:', decryptedPasswords);
-            setPasswords(decryptedPasswords);
-        }
+      const decryptedPasswords = await Promise.all(
+        data.passwords.map(async (pwd: Password) => {
+          try {
+            return {
+              ...pwd,
+              password: await cipher.decrypt(pwd.password)
+            };
+          } catch (error) {
+            console.error('Failed to decrypt password:', error);
+            throw error;
+          }
+        })
+      );
+      setPasswords(decryptedPasswords);
     } catch (err) {
-        console.error('Failed to load passwords:', err);
-        setError('Failed to load passwords');
+      console.error('Failed to load passwords:', err);
+      setError('Failed to load passwords');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
   useEffect(() => {
     fetchPasswords();
@@ -71,8 +96,14 @@ const PasswordsPage = () => {
     }
 
     try {
+      // Pobierz aktualne dane
+      const currentData = await fetchCurrentData();
+      if (!currentData) {
+        throw new Error('Failed to fetch current data');
+      }
+
+      // Przygotuj nowe zaszyfrowane hasło
       const encryptedPassword = await cipher.encrypt(newPassword.password);
-      
       const passwordData = {
         id: Date.now(),
         user_id: 0,
@@ -81,12 +112,14 @@ const PasswordsPage = () => {
         created_at: new Date().toISOString()
       };
 
+      // Wyślij zaktualizowane dane
       const response = await fetch('/api/v1/sync', {
         method: 'POST',
         headers: auth.getAuthHeaders(),
         body: JSON.stringify({
           data: {
-            passwords: [...passwords, passwordData]
+            ...currentData,
+            passwords: [...currentData.passwords, passwordData]
           }
         })
       });
@@ -94,11 +127,12 @@ const PasswordsPage = () => {
       if (response.ok) {
         setIsAddingPassword(false);
         setNewPassword({ description: '', password: '' });
-        fetchPasswords();
+        await fetchPasswords();
       } else {
-        setError('Failed to add password');
+        throw new Error('Failed to sync data');
       }
     } catch (err) {
+      console.error('Add password error:', err);
       setError('Failed to add password');
     }
   };
@@ -109,23 +143,36 @@ const PasswordsPage = () => {
     }
 
     try {
-      const updatedPasswords = passwords.filter(pwd => pwd.id !== passwordId);
+      // Pobierz aktualne dane
+      const currentData = await fetchCurrentData();
+      if (!currentData) {
+        throw new Error('Failed to fetch current data');
+      }
+
+      // Usuń wybrane hasło
+      const updatedPasswords = currentData.passwords.filter(
+        pwd => pwd.id !== passwordId
+      );
+
+      // Wyślij zaktualizowane dane
       const response = await fetch('/api/v1/sync', {
         method: 'POST',
         headers: auth.getAuthHeaders(),
         body: JSON.stringify({
           data: {
+            ...currentData,
             passwords: updatedPasswords
           }
         })
       });
 
-      if (response.ok) {
-        fetchPasswords();
-      } else {
-        setError('Failed to delete password');
+      if (!response.ok) {
+        throw new Error('Failed to sync data');
       }
+
+      await fetchPasswords();
     } catch (err) {
+      console.error('Delete password error:', err);
       setError('Failed to delete password');
     }
   };
@@ -141,6 +188,7 @@ const PasswordsPage = () => {
     try {
       await navigator.clipboard.writeText(text);
     } catch (err) {
+      console.error('Copy to clipboard error:', err);
       setError('Failed to copy to clipboard');
     }
   };
