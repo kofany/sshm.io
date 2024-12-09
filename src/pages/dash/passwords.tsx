@@ -1,5 +1,5 @@
 // src/pages/dash/passwords.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { FiPlusCircle, FiTrash2, FiEye, FiEyeOff, FiCopy } from 'react-icons/fi';
 import { auth } from '@/lib/auth';
@@ -32,8 +32,8 @@ const PasswordsPage = () => {
     password: ''
   });
 
-  // Pobiera aktualne surowe dane z API
-  const fetchCurrentData = async (): Promise<SyncData | null> => {
+  // Memoized function to fetch current data
+  const fetchCurrentData = useCallback(async (): Promise<SyncData | null> => {
     const response = await fetch('/api/v1/sync', {
       headers: auth.getAuthHeaders(),
     });
@@ -44,10 +44,41 @@ const PasswordsPage = () => {
 
     const data = await response.json();
     return data.status === 'success' ? data.data : null;
-  };
+  }, []);
 
-  // Pobiera i deszyfruje hasła do wyświetlenia
-  const fetchPasswords = async () => {
+  // Memoized function to decrypt passwords
+  const decryptPasswords = useCallback(async (encryptedPasswords: Password[]) => {
+    const cipher = CryptoSession.getCipher();
+    if (!cipher) {
+      throw new Error('No cipher available');
+    }
+
+    return Promise.all(
+      encryptedPasswords.map(async (pwd: Password) => {
+        try {
+          return {
+            ...pwd,
+            password: await cipher.decrypt(pwd.password)
+          };
+        } catch (error) {
+          console.error('Failed to decrypt password:', error);
+          throw error;
+        }
+      })
+    );
+  }, []);
+
+  // Memoized function to encrypt a single password
+  const encryptPassword = useCallback(async (plainPassword: string) => {
+    const cipher = CryptoSession.getCipher();
+    if (!cipher) {
+      throw new Error('No cipher available');
+    }
+    return cipher.encrypt(plainPassword);
+  }, []);
+
+  // Memoized function to fetch and decrypt passwords
+  const fetchPasswords = useCallback(async () => {
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
       setShowCryptoPrompt(true);
@@ -61,33 +92,22 @@ const PasswordsPage = () => {
         throw new Error('No data received');
       }
 
-      const decryptedPasswords = await Promise.all(
-        data.passwords.map(async (pwd: Password) => {
-          try {
-            return {
-              ...pwd,
-              password: await cipher.decrypt(pwd.password)
-            };
-          } catch (error) {
-            console.error('Failed to decrypt password:', error);
-            throw error;
-          }
-        })
-      );
+      const decryptedPasswords = await decryptPasswords(data.passwords);
       setPasswords(decryptedPasswords);
+      setError('');
     } catch (err) {
       console.error('Failed to load passwords:', err);
       setError('Failed to load passwords');
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchCurrentData, decryptPasswords]);
 
   useEffect(() => {
     fetchPasswords();
-  }, []);
+  }, [fetchPasswords]);
 
-  const handleAddPassword = async (e: React.FormEvent) => {
+  const handleAddPassword = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const cipher = CryptoSession.getCipher();
     if (!cipher) {
@@ -96,14 +116,13 @@ const PasswordsPage = () => {
     }
 
     try {
-      // Pobierz aktualne dane
       const currentData = await fetchCurrentData();
       if (!currentData) {
         throw new Error('Failed to fetch current data');
       }
 
-      // Przygotuj nowe zaszyfrowane hasło
-      const encryptedPassword = await cipher.encrypt(newPassword.password);
+      // Ensure all existing passwords remain encrypted
+      const encryptedPassword = await encryptPassword(newPassword.password);
       const passwordData = {
         id: Date.now(),
         user_id: 0,
@@ -118,7 +137,7 @@ const PasswordsPage = () => {
         body: JSON.stringify({
           data: {
             ...currentData,
-            passwords: [...currentData.passwords, passwordData] 
+            passwords: [...currentData.passwords, passwordData]
           }
         })
       });
@@ -126,7 +145,7 @@ const PasswordsPage = () => {
       if (response.ok) {
         setIsAddingPassword(false);
         setNewPassword({ description: '', password: '' });
-        await fetchPasswords(); 
+        await fetchPasswords();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to sync data');
@@ -135,26 +154,23 @@ const PasswordsPage = () => {
       console.error('Add password error:', err);
       setError(err instanceof Error ? err.message : 'Failed to add password');
     }
-};
+  }, [fetchCurrentData, encryptPassword, newPassword, fetchPasswords]);
 
-  const handleDeletePassword = async (passwordId: number) => {
+  const handleDeletePassword = useCallback(async (passwordId: number) => {
     if (!window.confirm('Are you sure you want to delete this password?')) {
       return;
     }
 
     try {
-      // Pobierz aktualne dane
       const currentData = await fetchCurrentData();
       if (!currentData) {
         throw new Error('Failed to fetch current data');
       }
 
-      // Usuń wybrane hasło
       const updatedPasswords = currentData.passwords.filter(
         pwd => pwd.id !== passwordId
       );
 
-      // Wyślij zaktualizowane dane
       const response = await fetch('/api/v1/sync', {
         method: 'POST',
         headers: auth.getAuthHeaders(),
@@ -171,32 +187,34 @@ const PasswordsPage = () => {
       }
 
       await fetchPasswords();
+      setError('');
     } catch (err) {
       console.error('Delete password error:', err);
       setError('Failed to delete password');
     }
-  };
+  }, [fetchCurrentData, fetchPasswords]);
 
-  const togglePasswordVisibility = (id: number) => {
+  const togglePasswordVisibility = useCallback((id: number) => {
     setVisiblePasswords(prev => ({
       ...prev,
       [id]: !prev[id]
     }));
-  };
+  }, []);
 
-  const handleCopyToClipboard = async (text: string) => {
+  const handleCopyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      setError('');
     } catch (err) {
       console.error('Copy to clipboard error:', err);
       setError('Failed to copy to clipboard');
     }
-  };
+  }, []);
 
-  const handleCryptoKeyProvided = () => {
+  const handleCryptoKeyProvided = useCallback(() => {
     setShowCryptoPrompt(false);
     fetchPasswords();
-  };
+  }, [fetchPasswords]);
 
   if (showCryptoPrompt) {
     return (
