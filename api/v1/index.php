@@ -38,7 +38,7 @@ if (API_DEBUG) {
 $web_endpoints = ['user/update', 'user/delete', 'check-session', 'logout']; // Usuń 'user/info'
 
 // Lista publicznych endpointów (nie wymagających żadnej autoryzacji)
-$public_endpoints = ['login', 'register', 'confirm-email'];
+$public_endpoints = ['login', 'register', 'confirm-email', 'reset-password'];
 
 // Lista endpointów akceptujących oba typy autoryzacji
 $dual_auth_endpoints = ['sync', 'status', 'user/info']; // Dodaj 'user/info'
@@ -140,6 +140,10 @@ switch ($path) {
     case 'confirm-email':
         require_once 'endpoints/confirm-email.php';
         break;
+
+    case 'reset-password':
+        require_once 'endpoints/reset-password.php';
+        break;     
         
     case 'user/update':
         require_once 'endpoints/user-update.php';
