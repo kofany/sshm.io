@@ -35,13 +35,13 @@ if (API_DEBUG) {
 
 
 // Lista endpointów dla panelu webowego (wymagających sesji)
-$web_endpoints = ['user/info', 'user/update', 'user/delete', 'check-session', 'logout'];
+$web_endpoints = ['user/update', 'user/delete', 'check-session', 'logout']; // Usuń 'user/info'
 
 // Lista publicznych endpointów (nie wymagających żadnej autoryzacji)
 $public_endpoints = ['login', 'register', 'confirm-email'];
 
 // Lista endpointów akceptujących oba typy autoryzacji
-$dual_auth_endpoints = ['sync', 'status'];
+$dual_auth_endpoints = ['sync', 'status', 'user/info']; // Dodaj 'user/info'
 
 // Zarządzanie autoryzacją
 if (in_array($path, $web_endpoints)) {
