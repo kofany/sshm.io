@@ -49,7 +49,7 @@ try {
 
     // Generuj token resetowania hasła
     $resetToken = generateSecureToken(32);
-    $tokenExpiry = date('Y-m-d H:i:s', strtotime('+1 hour'));
+    $tokenExpiry = date('Y-m-d H:i:s', strtotime('+2 hour'));
 
     // Zapisz token w bazie
     $stmt = $pdo->prepare('
