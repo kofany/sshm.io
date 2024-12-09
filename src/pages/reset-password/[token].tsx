@@ -23,7 +23,7 @@ const ResetPassword = () => {
     }
 
     try {
-      const response = await fetch('/api/v1/reset-password', {
+      const response = await fetch('/api/v1/reset-password/confirm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
