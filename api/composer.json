@@ -1,0 +1,14 @@
+{
+    "name": "sshm/api",
+    "description": "SSHM.io API",
+    "type": "project",
+    "authors": [
+        {
+            "name": "kofany",
+            "email": "mac@dabrowski.biz"
+        }
+    ],
+    "require": {
+        "getbrevo/brevo-php": "^2.0"
+    }
+}
