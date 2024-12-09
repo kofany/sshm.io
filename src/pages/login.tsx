@@ -34,7 +34,7 @@ const LoginPage = () => {
 
       if (data.status === 'success') {
         auth.login(data.data.api_key);
-        setStep('encryption_key'); // Przejście do drugiego kroku
+        setStep('encryption_key');
       } else {
         setError(data.message || 'Invalid credentials');
       }
@@ -51,10 +51,8 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // Inicjalizacja szyfru używając encryption key
       CryptoSession.initializeSession(encryptionKey);
       
-      // Walidacja klucza poprzez test szyfrowania
       const isValid = await CryptoSession.validateSession();
       
       if (!isValid) {
@@ -187,6 +185,17 @@ const LoginPage = () => {
                   onChange={(e) => setCredentials({...credentials, password: e.target.value})}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <Link
+                  href="/forgot-password"
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Forgot your password?
+                </Link>
               </div>
             </div>
 
