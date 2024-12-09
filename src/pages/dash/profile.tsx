@@ -1,5 +1,5 @@
 // src/pages/dash/profile.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { FiUser, FiMail, FiLock, FiAlertCircle } from 'react-icons/fi';
@@ -24,48 +24,48 @@ const ProfilePage = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
 
-  const fetchUserData = async () => {
-    const apiKey = auth.getApiKey();
-    const cipher = CryptoSession.getCipher();
-    
-    if (!apiKey) {
-      router.push('/login');
-      return;
-    }
-    
-    if (!cipher) {
-      setShowCryptoPrompt(true);
-      setLoading(false);
-      return;
-    }
-  
-    try {
-      const response = await fetch('/api/v1/user/info', {
-        headers: {
-          ...auth.getAuthHeaders(),
-          'X-Api-Key': apiKey
-        }
-      });
-  
-      const data = await response.json();
-      if (data.status === 'success') {
-        setUserData(data.data);
-        setError('');
-      } else if (response.status === 401) {
+    const fetchUserData = useCallback(async () => {
+      const apiKey = auth.getApiKey();
+      const cipher = CryptoSession.getCipher();
+      
+      if (!apiKey) {
         router.push('/login');
-      } else {
-        setError('');  // Nie wyświetlamy "Unauthorized"
+        return;
       }
-    } catch (err) {
-      console.error('Error:', err);
-      setError('Failed to load user data');
-    }
-    setLoading(false);
-  };
+      
+      if (!cipher) {
+        setShowCryptoPrompt(true);
+        setLoading(false);
+        return;
+      }
+    
+      try {
+        const response = await fetch('/api/v1/user/info', {
+          headers: {
+            ...auth.getAuthHeaders(),
+            'X-Api-Key': apiKey
+          }
+        });
+    
+        const data = await response.json();
+        if (data.status === 'success') {
+          setUserData(data.data);
+          setError('');
+        } else if (response.status === 401) {
+          router.push('/login');
+        } else {
+          setError('');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        setError('Failed to load user data');
+      }
+      setLoading(false);
+  }, [router]); // router jako zależność
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
+      fetchUserData();
+  }, [fetchUserData]); // fetchUserData jako zależność
 
   const handleUpdateEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
