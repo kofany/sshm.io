@@ -34,15 +34,22 @@ if (API_DEBUG) {
 }
 
 
-// Lista endpointów dla panelu webowego (wymagających sesji)
-$web_endpoints = ['user/update', 'user/delete', 'check-session', 'logout']; // Usuń 'user/info'
+$web_endpoints = [
+    'user/info',     // Only web auth
+    'user/update',   // Only web auth
+    'user/delete',   // Only web auth
+    'check-session', // Only web auth
+    'logout'         // Only web auth
+];
 
 // Lista publicznych endpointów (nie wymagających żadnej autoryzacji)
 $public_endpoints = ['login', 'register', 'confirm-email', 'reset-password', 'reset-password/confirm'];
 
 // Lista endpointów akceptujących oba typy autoryzacji
-$dual_auth_endpoints = ['sync', 'status', 'user/info']; // Dodaj 'user/info'
-
+$dual_auth_endpoints = [
+    'sync',    // dual auth
+    'status'   // dual auth
+];
 // Zarządzanie autoryzacją
 if (in_array($path, $web_endpoints)) {
     // Endpointy panelu webowego - wymagają sesji

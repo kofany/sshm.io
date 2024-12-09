@@ -1,4 +1,3 @@
-// /api/v1/endpoints/user-info.php
 <?php
 if (!defined('API_ACCESS')) {
     header('HTTP/1.0 403 Forbidden');
@@ -9,17 +8,19 @@ if ($method !== 'GET') {
     sendResponse('error', 'Method not allowed');
 }
 
-$userId = validateAuth($pdo);
-
 try {
-    // Sprawdź czy konto jest aktywne
+    // Uniwersalna autoryzacja
+    $userId = validateAuth($pdo);
+
+    // Sprawdź status konta
     if (!validateUserStatus($pdo, $userId)) {
         sendResponse('error', 'Account is not active');
     }
 
-    // Zmodyfikowane zapytanie zgodne z nową strukturą bazy
+    // Pobierz dane użytkownika
     $stmt = $pdo->prepare('
         SELECT 
+            u.id,
             u.email, 
             u.created_at,
             u.api_key,
@@ -32,7 +33,7 @@ try {
     ');
     
     $stmt->execute([$userId]);
-    $userData = $stmt->fetch();
+    $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$userData) {
         logEvent('user-info', 'User not found', ['user_id' => $userId]);
@@ -44,6 +45,11 @@ try {
     $userData['keys_count'] = (int)$userData['keys_count'];
     $userData['passwords_count'] = (int)$userData['passwords_count'];
 
+    // Zwracamy api_key tylko dla panelu webowego
+    if (!isWebPanel()) {
+        unset($userData['api_key']);
+    }
+
     logEvent('user-info', 'User info retrieved successfully', [
         'user_id' => $userId,
         'email' => $userData['email']
@@ -51,10 +57,10 @@ try {
 
     sendResponse('success', 'User info retrieved', $userData);
 
-} catch (PDOException $e) {
-    logEvent('error', 'Database error during user info retrieval', [
+} catch (Exception $e) {
+    logEvent('error', 'Error retrieving user info', [
         'error' => $e->getMessage(),
-        'user_id' => $userId
+        'user_id' => $userId ?? null
     ]);
     
     if (API_DEBUG) {

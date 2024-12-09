@@ -56,31 +56,34 @@ function validateSession() {
  * Uniwersalna funkcja autoryzacji - obsługuje oba typy
  */
 function validateAuth($pdo) {
-    if (isWebPanel()) {
-        session_start();
-        if (!isset($_SESSION['user_id'])) {
-            throw new Exception('Session required');
+    try {
+        if (isWebPanel()) {
+            session_start();
+            if (isset($_SESSION['user_id'])) {
+                return $_SESSION['user_id'];
+            }
         }
-        return $_SESSION['user_id'];
+
+        $headers = getallheaders();
+        $apiKey = $headers['X-Api-Key'] ?? null;
+
+        if (!$apiKey) {
+            throw new Exception('Authentication required');
+        }
+
+        $stmt = $pdo->prepare('SELECT id FROM sshm_users WHERE api_key = ? AND is_active = 1');
+        $stmt->execute([$apiKey]);
+        $user = $stmt->fetch();
+
+        if (!$user) {
+            throw new Exception('Invalid API key');
+        }
+
+        return $user['id'];
+    } catch (Exception $e) {
+        logEvent('auth', 'Authentication failed', ['error' => $e->getMessage()]);
+        sendResponse('error', 'Authentication failed');
     }
-
-    // Sprawdzamy API key
-    $headers = getallheaders();
-    $apiKey = $headers['X-Api-Key'] ?? null;
-
-    if (!$apiKey) {
-        throw new Exception('API key required');
-    }
-
-    $stmt = $pdo->prepare('SELECT id FROM sshm_users WHERE api_key = ? AND is_active = 1');
-    $stmt->execute([$apiKey]);
-    $user = $stmt->fetch();
-
-    if (!$user) {
-        throw new Exception('Invalid API key');
-    }
-
-    return $user['id'];
 }
 
 /**
