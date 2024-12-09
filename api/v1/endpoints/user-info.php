@@ -1,4 +1,6 @@
 <?php
+// /api/v1/endpoints/user-info.php
+
 if (!defined('API_ACCESS')) {
     header('HTTP/1.0 403 Forbidden');
     exit;
@@ -9,26 +11,24 @@ if ($method !== 'GET') {
 }
 
 try {
-    // Uniwersalna autoryzacja
-    $userId = validateAuth($pdo);
-
-    // Sprawdź status konta
-    if (!validateUserStatus($pdo, $userId)) {
-        sendResponse('error', 'Account is not active');
+    // Web session authorization only
+    session_start();
+    if (!isset($_SESSION['user_id'])) {
+        sendResponse('error', 'Session required', ['code' => 'SESSION_REQUIRED']);
     }
 
-    // Pobierz dane użytkownika
+    $userId = $_SESSION['user_id'];
+
+    // Check if user exists and is active
     $stmt = $pdo->prepare('
         SELECT 
-            u.id,
-            u.email, 
+            u.email,
             u.created_at,
-            u.api_key,
-            (SELECT COUNT(*) FROM sshm_hosts WHERE user_id = u.id) as hosts_count,
-            (SELECT COUNT(*) FROM sshm_keys WHERE user_id = u.id) as keys_count,
-            (SELECT COUNT(*) FROM sshm_passwords WHERE user_id = u.id) as passwords_count,
-            (SELECT last_sync FROM sshm_sync_status WHERE user_id = u.id) as last_sync
-        FROM sshm_users u
+            COALESCE((SELECT COUNT(*) FROM sshm_hosts WHERE user_id = u.id), 0) as hosts_count,
+            COALESCE((SELECT COUNT(*) FROM sshm_keys WHERE user_id = u.id), 0) as keys_count,
+            COALESCE((SELECT COUNT(*) FROM sshm_passwords WHERE user_id = u.id), 0) as passwords_count,
+            COALESCE((SELECT last_sync FROM sshm_sync_status WHERE user_id = u.id), NULL) as last_sync
+        FROM sshm_users u 
         WHERE u.id = ? AND u.is_active = 1
     ');
     
@@ -36,35 +36,45 @@ try {
     $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$userData) {
-        logEvent('user-info', 'User not found', ['user_id' => $userId]);
+        logEvent('user-info', 'User not found or inactive', ['user_id' => $userId]);
         sendResponse('error', 'User not found');
     }
 
-    // Konwersja liczników na integer
-    $userData['hosts_count'] = (int)$userData['hosts_count'];
-    $userData['keys_count'] = (int)$userData['keys_count'];
-    $userData['passwords_count'] = (int)$userData['passwords_count'];
-
-    // Zwracamy api_key tylko dla panelu webowego
-    if (!isWebPanel()) {
-        unset($userData['api_key']);
+    // Check if session is still valid
+    if (!isset($_SESSION['LAST_ACTIVITY']) || (time() - $_SESSION['LAST_ACTIVITY'] > SESSION_TIMEOUT)) {
+        session_unset();
+        session_destroy();
+        sendResponse('error', 'Session expired', ['code' => 'SESSION_EXPIRED']);
     }
+
+    $_SESSION['LAST_ACTIVITY'] = time();
 
     logEvent('user-info', 'User info retrieved successfully', [
         'user_id' => $userId,
         'email' => $userData['email']
     ]);
 
-    sendResponse('success', 'User info retrieved', $userData);
+    sendResponse('success', 'User info retrieved successfully', $userData);
+
+} catch (PDOException $e) {
+    logEvent('error', 'Database error in user info', [
+        'error' => $e->getMessage(),
+        'user_id' => $userId ?? null
+    ]);
+
+    if (API_DEBUG) {
+        sendResponse('error', 'Database error: ' . $e->getMessage());
+    }
+    sendResponse('error', 'Database error occurred');
 
 } catch (Exception $e) {
     logEvent('error', 'Error retrieving user info', [
         'error' => $e->getMessage(),
         'user_id' => $userId ?? null
     ]);
-    
+
     if (API_DEBUG) {
-        sendResponse('error', $e->getMessage());
+        sendResponse('error', 'Error: ' . $e->getMessage());
     }
     sendResponse('error', 'Failed to get user info');
 }
