@@ -57,10 +57,30 @@ function validateSession() {
  */
 function validateAuth($pdo) {
     if (isWebPanel()) {
-        return validateSession();
-    } else {
-        return validateApiKey($pdo);
+        session_start();
+        if (!isset($_SESSION['user_id'])) {
+            throw new Exception('Session required');
+        }
+        return $_SESSION['user_id'];
     }
+
+    // Sprawdzamy API key
+    $headers = getallheaders();
+    $apiKey = $headers['X-Api-Key'] ?? null;
+
+    if (!$apiKey) {
+        throw new Exception('API key required');
+    }
+
+    $stmt = $pdo->prepare('SELECT id FROM sshm_users WHERE api_key = ? AND is_active = 1');
+    $stmt->execute([$apiKey]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        throw new Exception('Invalid API key');
+    }
+
+    return $user['id'];
 }
 
 /**

@@ -25,39 +25,31 @@ const ProfilePage = () => {
   const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
 
   const fetchUserData = useCallback(async () => {
+    const apiKey = auth.getApiKey();
+    const cipher = CryptoSession.getCipher();
+    
+    if (!apiKey) {
+      router.push('/login');
+      return;
+    }
+    
+    if (!cipher) {
+      setShowCryptoPrompt(true);
+      setLoading(false);
+      return;
+    }
+  
     try {
-      const apiKey = auth.getApiKey();
-      
-      if (!apiKey) {
-        router.push('/login');
-        return;
-      }
-
-      // Sprawdź czy mamy aktywną sesję szyfrowania
-      const cipher = CryptoSession.getCipher();
-      if (!cipher) {
-        setShowCryptoPrompt(true);
-        setLoading(false);
-        return;
-      }
-
       const response = await fetch('/api/v1/user/info', {
-        headers: {
-          ...auth.getAuthHeaders(),
-          'Content-Type': 'application/json',
-        }
+        headers: auth.getAuthHeaders()
       });
-
+  
       if (!response.ok) {
-        if (response.status === 401) {
-          auth.logout();
-          router.push('/login');
-          return;
-        }
         throw new Error('Failed to fetch user data');
       }
-
+  
       const data = await response.json();
+      
       if (data.status === 'success') {
         setUserData(data.data);
         setError('');
@@ -66,6 +58,11 @@ const ProfilePage = () => {
       }
     } catch (err) {
       console.error('Error fetching user data:', err);
+      if (err instanceof Error && err.message.includes('Unauthorized')) {
+        auth.logout();
+        router.push('/login');
+        return;
+      }
       setError('Failed to load user data');
     } finally {
       setLoading(false);
@@ -151,27 +148,22 @@ const ProfilePage = () => {
 
       const response = await fetch('/api/v1/user/delete', {
         method: 'DELETE',
-        headers: {
-          ...auth.getAuthHeaders(),
-          'X-Requested-With': 'XMLHttpRequest', // Dodajemy ten nagłówek
-          'Content-Type': 'application/json'
-        }
+        headers: auth.getAuthHeaders()
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to delete account');
-      }
-
+      // Tylko raz odczytujemy response.json()
       const data = await response.json();
       
       if (data.status === 'success') {
         auth.logout();
         CryptoSession.clearSession();
         router.push('/login');
-      } else {
-        setError(data.message || 'Failed to delete account');
+        return;
       }
+      
+      // Jeśli nie success, rzucamy błąd z komunikatem
+      throw new Error(data.message || 'Failed to delete account');
+
     } catch (err) {
       console.error('Delete account error:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete account');
