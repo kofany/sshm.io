@@ -4,12 +4,12 @@ if (!defined('API_ACCESS')) {
     exit;
 }
 
-// Uniwersalna autoryzacja
-$userId = validateAuth($pdo);
-
-if ($method !== 'DELETE') {
+if ($method !== 'POST') {
     sendResponse('error', 'Method not allowed');
 }
+
+// Uniwersalna autoryzacja
+$userId = validateAuth($pdo);
 
 try {
     // Pobranie danych użytkownika przed usunięciem (do logów)
@@ -22,10 +22,8 @@ try {
         sendResponse('error', 'User not found');
     }
 
-    // Rozpocznij transakcję
     $pdo->beginTransaction();
 
-    // Usuń wszystkie powiązane dane w odpowiedniej kolejności
     $tables = [
         'sshm_hosts',
         'sshm_keys',
@@ -38,20 +36,16 @@ try {
         $stmt->execute([$userId]);
     }
 
-    // Usuń użytkownika
     $stmt = $pdo->prepare('DELETE FROM sshm_users WHERE id = ?');
     $stmt->execute([$userId]);
 
-    // Zatwierdź transakcję
     $pdo->commit();
 
-    // Logowanie pomyślnego usunięcia
     logEvent('user-delete', 'User account deleted successfully', [
         'user_id' => $userId,
         'email' => $user['email']
     ]);
 
-    // Jeśli to panel webowy, niszczymy sesję
     if (isWebPanel()) {
         session_start();
         session_unset();
@@ -65,7 +59,6 @@ try {
     sendResponse('success', 'User account deleted successfully');
 
 } catch (PDOException $e) {
-    // Wycofaj transakcję w przypadku błędu
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
@@ -75,8 +68,5 @@ try {
         'user_id' => $userId
     ]);
     
-    if (API_DEBUG) {
-        sendResponse('error', $e->getMessage());
-    }
     sendResponse('error', 'Failed to delete account');
 }

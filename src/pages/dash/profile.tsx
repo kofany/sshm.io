@@ -140,7 +140,7 @@ const ProfilePage = () => {
     
     try {
       const response = await fetch('/api/v1/user/delete', {
-        method: 'DELETE',
+        method: 'POST',  // Zmiana z DELETE na POST
         headers: {
           ...auth.getAuthHeaders(),
           'X-Api-Key': apiKey
