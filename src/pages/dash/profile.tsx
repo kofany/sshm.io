@@ -137,11 +137,14 @@ const ProfilePage = () => {
         headers: auth.getAuthHeaders(),
       });
 
-      if (response.ok) {
-        auth.logout();
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        // Najpierw usuwamy konto, potem wylogowujemy
+        await auth.logout();
         router.push('/login');
       } else {
-        setError('Failed to delete account');
+        setError(data.message || 'Failed to delete account');
       }
     } catch (err) {
       setError('Failed to delete account');
