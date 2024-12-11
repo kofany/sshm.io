@@ -131,16 +131,25 @@ const ProfilePage = () => {
       return;
     }
 
+    const apiKey = auth.getApiKey();
+    if (!apiKey) {
+      setError('Not authenticated');
+      router.push('/login');
+      return;
+    }
+    
     try {
       const response = await fetch('/api/v1/user/delete', {
         method: 'DELETE',
-        headers: auth.getAuthHeaders(),
+        headers: {
+          ...auth.getAuthHeaders(),
+          'X-Api-Key': apiKey
+        }
       });
 
       const data = await response.json();
       
       if (data.status === 'success') {
-        // Najpierw usuwamy konto, potem wylogowujemy
         await auth.logout();
         router.push('/login');
       } else {
