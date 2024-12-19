@@ -14,7 +14,7 @@ interface HostFormProps {
 const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], keys = [], onSubmit, onCancel }) => {
     const [showCryptoPrompt, setShowCryptoPrompt] = useState(false);
     const [authType, setAuthType] = useState<'password' | 'key'>(
-        host && host.password_id !== undefined ? (host.password_id >= 0 ? 'password' : 'key') : 'password'
+        host?.password_id !== undefined ? (host.password_id >= 0 ? 'password' : 'key') : 'password'
     );
     const [formData, setFormData] = useState<Partial<Host>>({
         name: '',
@@ -76,14 +76,14 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], keys = [], on
                 setShowCryptoPrompt(true);
                 return;
             }
-    
+
             if (!formData.login || !formData.ip || !formData.name) {
                 console.error('Missing required fields');
                 return;
             }
-    
+
             console.log('Encrypting form data...');
-    
+
             const [
                 encryptedName,
                 encryptedDescription,
@@ -97,19 +97,16 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], keys = [], on
                 cipher.encrypt(formData.ip),
                 cipher.encrypt(formData.port || '22')
             ]);
-    
-            // Oblicz password_id na podstawie typu autoryzacji
+
             let finalPasswordId: number;
             if (authType === 'password') {
-                // Dla haseł używamy indeksu w tablicy (0, 1, 2, ...)
                 finalPasswordId = passwords.findIndex(p => String(p.id) === String(formData.password_id));
                 if (finalPasswordId === -1) finalPasswordId = 0;
             } else {
-                // Dla kluczy używamy ujemnego indeksu (-1, -2, -3, ...)
                 const keyIndex = keys.findIndex(k => String(k.id) === String(formData.password_id));
                 finalPasswordId = keyIndex === -1 ? -1 : -(keyIndex + 1);
             }
-    
+
             const hostData: Host = {
                 id: host?.id || Date.now(),
                 user_id: host?.user_id || 0,
@@ -121,9 +118,9 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], keys = [], on
                 ip: encryptedIp,
                 port: encryptedPort
             };
-    
+
             await onSubmit(hostData);
-    
+
             setFormData({
                 name: '',
                 description: '',
@@ -132,11 +129,11 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], keys = [], on
                 ip: '',
                 port: '22'
             });
-    
+
             if (onCancel) {
                 onCancel();
             }
-    
+
         } catch (error) {
             console.error('Failed to prepare host data:', error);
         }
@@ -147,14 +144,6 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], keys = [], on
         setFormData(prev => ({
             ...prev,
             [name]: value
-        }));
-    };
-
-    const handleAuthTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setAuthType(e.target.value as 'password' | 'key');
-        setFormData(prev => ({
-            ...prev,
-            password_id: e.target.value === 'password' ? 0 : -1
         }));
     };
 
@@ -219,7 +208,7 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], keys = [], on
                 <select
                     id="auth_type"
                     value={authType}
-                    onChange={handleAuthTypeChange}
+                    onChange={(e) => setAuthType(e.target.value as 'password' | 'key')}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                     <option value="password">Password</option>
@@ -227,49 +216,34 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], keys = [], on
                 </select>
             </div>
 
-            {authType === 'password' ? (
-                <div>
-                    <label htmlFor="password_id" className="block text-sm font-medium text-gray-700">
-                        Password
-                    </label>
-                    <select
-                        id="password_id"
-                        name="password_id"
-                        value={formData.password_id}
-                        onChange={handleChange}
-                        required
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    >
-                        <option value="">Select password</option>
-                        {passwords.map((pwd, index) => (
+            <div>
+                <label htmlFor="password_id" className="block text-sm font-medium text-gray-700">
+                    {authType === 'password' ? 'Password' : 'SSH Key'}
+                </label>
+                <select
+                    id="password_id"
+                    name="password_id"
+                    value={formData.password_id}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                    <option value="">Select {authType === 'password' ? 'password' : 'SSH key'}</option>
+                    {authType === 'password' ? (
+                        passwords.map((pwd, index) => (
                             <option key={pwd.id} value={pwd.id}>
                                 {pwd.description || `Password #${index + 1}`}
                             </option>
-                        ))}
-                    </select>
-                </div>
-            ) : (
-                <div>
-                    <label htmlFor="password_id" className="block text-sm font-medium text-gray-700">
-                        SSH Key
-                    </label>
-                    <select
-                        id="password_id"
-                        name="password_id"
-                        value={formData.password_id}
-                        onChange={handleChange}
-                        required
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    >
-                        <option value="">Select SSH key</option>
-                        {keys.map((key, index) => (
+                        ))
+                    ) : (
+                        keys.map((key, index) => (
                             <option key={key.id} value={key.id}>
                                 {key.description || `Key #${index + 1}`}
                             </option>
-                        ))}
-                    </select>
-                </div>
-            )}
+                        ))
+                    )}
+                </select>
+            </div>
 
             <div>
                 <label htmlFor="ip" className="block text-sm font-medium text-gray-700">
