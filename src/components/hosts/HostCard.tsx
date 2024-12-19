@@ -29,18 +29,36 @@ const HostCard: React.FC<HostCardProps> = ({ host, password }) => {
 
   const decryptHost = useCallback(async (cipher: Cipher) => {
     try {
-      console.log(`Decrypting host: ${host.name}`);
-      return {
-        ...host,
-        login: await cipher.decrypt(host.login),
-        ip: await cipher.decrypt(host.ip),
-        port: await cipher.decrypt(host.port)
-      };
+        console.log(`Decrypting host: ${host.name}`);
+        
+        // Decrypt all fields
+        const [
+            decryptedName,
+            decryptedDescription,
+            decryptedLogin,
+            decryptedIp,
+            decryptedPort
+        ] = await Promise.all([
+            cipher.decrypt(host.name),
+            host.description ? cipher.decrypt(host.description) : Promise.resolve(null),
+            cipher.decrypt(host.login),
+            cipher.decrypt(host.ip),
+            cipher.decrypt(host.port)
+        ]);
+
+        return {
+            ...host,
+            name: decryptedName,
+            description: decryptedDescription,
+            login: decryptedLogin,
+            ip: decryptedIp,
+            port: decryptedPort
+        };
     } catch (err) {
-      console.error('Decryption error:', err);
-      throw err;
+        console.error('Decryption error:', err);
+        throw err;
     }
-  }, [host]);
+}, [host]);
 
   useEffect(() => {
     const decryptHostData = async () => {

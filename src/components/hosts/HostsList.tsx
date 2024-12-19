@@ -15,30 +15,46 @@ interface HostsListProps {
 const decryptHost = async (host: Host, cipher: Cipher): Promise<Host> => {
   console.log('Decrypting host:', {
       id: host.id,
-      name: host.name,
+      encryptedName: host.name,
+      encryptedDescription: host.description,
       encryptedLogin: host.login,
       encryptedIp: host.ip,
       encryptedPort: host.port
   });
 
   try {
-      const decryptedLogin = await cipher.decrypt(host.login);
-      console.log('Decrypted login:', decryptedLogin);
+      const [
+          decryptedName,
+          decryptedDescription,
+          decryptedLogin,
+          decryptedIP,
+          decryptedPort
+      ] = await Promise.all([
+          cipher.decrypt(host.name),
+          host.description ? cipher.decrypt(host.description) : Promise.resolve(null),
+          cipher.decrypt(host.login),
+          cipher.decrypt(host.ip),
+          cipher.decrypt(host.port)
+      ]);
 
-      const decryptedIP = await cipher.decrypt(host.ip);
-      console.log('Decrypted IP:', decryptedIP);
-
-      const decryptedPort = await cipher.decrypt(host.port);
-      console.log('Decrypted port:', decryptedPort);
+      console.log('Host decrypted:', {
+          name: decryptedName,
+          description: decryptedDescription,
+          login: decryptedLogin,
+          ip: decryptedIP,
+          port: decryptedPort
+      });
 
       const decrypted = {
           ...host,
+          name: decryptedName,
+          description: decryptedDescription,
           login: decryptedLogin,
           ip: decryptedIP,
           port: decryptedPort
       };
 
-      if (!decryptedLogin || !decryptedIP || !decryptedPort) {
+      if (!decryptedName || !decryptedLogin || !decryptedIP || !decryptedPort) {
           console.error('Empty decrypted values detected');
       }
 

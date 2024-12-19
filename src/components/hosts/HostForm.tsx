@@ -68,32 +68,32 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
                 return;
             }
     
-            console.log('Encrypting form data:', {
-                login: formData.login,
-                ip: formData.ip,
-                port: formData.port || '22'
-            });
+            console.log('Encrypting form data...');
     
-            // Szyfrowanie danych
-            const [encryptedLogin, encryptedIp, encryptedPort] = await Promise.all([
+            // Szyfrowanie wszystkich pól
+            const [
+                encryptedName,
+                encryptedDescription,
+                encryptedLogin, 
+                encryptedIp, 
+                encryptedPort
+            ] = await Promise.all([
+                cipher.encrypt(formData.name),
+                formData.description ? cipher.encrypt(formData.description) : Promise.resolve(null),
                 cipher.encrypt(formData.login),
                 cipher.encrypt(formData.ip),
                 cipher.encrypt(formData.port || '22')
             ]);
     
-            console.log('Encrypted values:', {
-                login: encryptedLogin,
-                ip: encryptedIp,
-                port: encryptedPort
-            });
+            console.log('All fields encrypted successfully');
     
             const hostData: Host = {
                 id: host?.id || Date.now(),
                 user_id: host?.user_id || 0,
                 created_at: host?.created_at || new Date().toISOString(),
                 password_id: Number(formData.password_id) || 0,
-                name: formData.name.trim(),
-                description: formData.description?.trim() || null,
+                name: encryptedName,
+                description: encryptedDescription,
                 login: encryptedLogin,
                 ip: encryptedIp,
                 port: encryptedPort
@@ -117,7 +117,6 @@ const HostForm: React.FC<HostFormProps> = ({ host, passwords = [], onSubmit, onC
     
         } catch (error) {
             console.error('Failed to prepare host data:', error);
-            // Tu możemy dodać jakieś powiadomienie dla użytkownika o błędzie
         }
     };
 
